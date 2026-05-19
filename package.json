@@ -1,5 +1,6 @@
 {
   "name": "guodu-prompts-engine",
+  "version": "0.1.0",
   "type": "module",
   "private": true,
   "workspaces": [
@@ -15,10 +16,13 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "test": "bun test packages/*/src",
-    "typecheck": "bun run --filter guodu-prompt-engine-core typecheck && bun run --filter guodu-prompt-engine-langchain typecheck && bun run --filter guodu-prompt-engine-ai-sdk typecheck"
+    "typecheck": "bun run --filter guodu-prompt-engine-core typecheck && bun run --filter guodu-prompt-engine-langchain typecheck && bun run --filter guodu-prompt-engine-ai-sdk typecheck",
+    "release": "bun run scripts/release.ts",
+    "release:dry": "bun run scripts/release.ts --dry"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "bumpp": "^11.1.0",
     "typescript": "^5.0.0",
     "vitepress": "^1.6.4"
   }
