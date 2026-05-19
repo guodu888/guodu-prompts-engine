@@ -1,0 +1,37 @@
+{
+  "name": "guodu-prompt-engine-langchain",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "keywords": [
+    "prompt",
+    "langchain",
+    "adapter"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git"
+  },
+  "peerDependencies": {
+    "@langchain/core": "^0.3.0"
+  },
+  "dependencies": {
+    "guodu-prompt-engine-core": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
+  }
+}

@@ -15,13 +15,41 @@
 ## 安装
 
 ```bash
-bun install prompt-engine
+bun add guodu-prompt-engine-core
+bun add guodu-prompt-engine-langchain
+bun add guodu-prompt-engine-ai-sdk
 ```
+
+## Monorepo 架构
+
+项目现在采用 Bun workspace monorepo，拆分为三个包：
+
+- `guodu-prompt-engine-core`：模板引擎核心能力与消息类型定义
+- `guodu-prompt-engine-langchain`：将 core 输出转换为 LangChain 可用消息格式
+- `guodu-prompt-engine-ai-sdk`：将 core 输出转换为 AI SDK 可用消息格式
+
+目录结构：
+
+```text
+packages/
+  core/
+  langchain/
+  ai-sdk/
+```
+
+依赖方向：
+
+```text
+langchain adapter ---> core
+ai-sdk adapter   ---> core
+```
+
+当前阶段 adapter 仅提供转换函数，不包含 render + transform 组合 API。
 
 ## 快速开始
 
 ```ts
-import { TemplateEngine } from 'prompt-engine';
+import { TemplateEngine } from 'guodu-prompt-engine-core';
 
 const engine = new TemplateEngine({
   baseDir: './prompts',
@@ -159,7 +187,7 @@ const messages = await engine.render('demo01.md', {
 基于内存Map的缓存实现，总是检查文件的 mtime 以确保缓存准确性。
 
 ```ts
-import { MemoryCache } from 'prompt-engine';
+import { MemoryCache } from 'guodu-prompt-engine-core';
 
 const engine = new TemplateEngine({
   baseDir: './prompts',
@@ -172,7 +200,7 @@ const engine = new TemplateEngine({
 基于LRU算法的缓存实现，自动淘汰最久未使用的缓存项，控制内存使用。
 
 ```ts
-import { LRUCache } from 'prompt-engine';
+import { LRUCache } from 'guodu-prompt-engine-core';
 
 const engine = new TemplateEngine({
   baseDir: './prompts',
@@ -281,14 +309,17 @@ detail: high
 ## 开发
 
 ```bash
-# 运行测试
+# 安装所有 workspace 依赖
+bun install
+
+# 全量类型检查
+bun run typecheck
+
+# 构建全部包
+bun run build
+
+# 测试
 bun test
-
-# 监听模式运行测试
-bun test --watch
-
-# 运行开发服务器
-bun run dev
 ```
 
 ## 许可证

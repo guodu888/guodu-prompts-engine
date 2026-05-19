@@ -1,12 +1,21 @@
 {
   "name": "guodu-prompts-engine",
-  "module": "index.ts",
   "type": "module",
   "private": true,
-  "devDependencies": {
-    "@types/bun": "latest"
+  "workspaces": [
+    "packages/core",
+    "packages/langchain",
+    "packages/ai-sdk"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "build:core": "bun run --filter guodu-prompt-engine-core build",
+    "build:adapters": "bun run --filter guodu-prompt-engine-langchain build && bun run --filter guodu-prompt-engine-ai-sdk build",
+    "test": "bun test packages/*/src",
+    "typecheck": "bun run --filter guodu-prompt-engine-core typecheck && bun run --filter guodu-prompt-engine-langchain typecheck && bun run --filter guodu-prompt-engine-ai-sdk typecheck"
   },
-  "peerDependencies": {
-    "typescript": "^5"
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
   }
 }

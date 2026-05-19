@@ -1,0 +1,37 @@
+{
+  "name": "guodu-prompt-engine-ai-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "keywords": [
+    "prompt",
+    "ai-sdk",
+    "adapter"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git"
+  },
+  "peerDependencies": {
+    "ai": "^4.0.0"
+  },
+  "dependencies": {
+    "guodu-prompt-engine-core": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
+  }
+}
