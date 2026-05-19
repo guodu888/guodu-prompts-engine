@@ -1,0 +1,33 @@
+:root {
+  --vp-c-brand-1: #0d9488;
+  --vp-c-brand-2: #0f766e;
+  --vp-c-brand-3: #115e59;
+  --vp-home-hero-name-color: #0f766e;
+  --vp-home-hero-image-background-image: radial-gradient(circle at 50% 50%, rgba(13, 148, 136, 0.2), rgba(13, 148, 136, 0));
+}
+
+.VPNavBarTitle .title {
+  letter-spacing: 0.2px;
+}
+
+.playground-page {
+  background:
+    radial-gradient(1000px 400px at 5% -10%, rgba(13, 148, 136, 0.08), rgba(13, 148, 136, 0) 70%),
+    radial-gradient(700px 300px at 90% 110%, rgba(20, 184, 166, 0.09), rgba(20, 184, 166, 0) 72%),
+    var(--vp-c-bg);
+}
+
+.playground-page h1 {
+  letter-spacing: 0.2px;
+  margin-bottom: 10px;
+}
+
+.playground-page .vp-page,
+.playground-page .VPDoc,
+.playground-page .content {
+  max-width: none;
+}
+
+.playground-page .container {
+  max-width: 1440px !important;
+}

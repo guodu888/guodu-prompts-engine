@@ -1,10 +1,8 @@
 import { expect, test } from "bun:test";
-import { TemplateEngine } from "./engine";
+import { LRUCache, MemoryCache, TemplateEngine } from "./index";
 
-test("TemplateEngine returns placeholder message", async () => {
-  const engine = new TemplateEngine({ baseDir: "./prompts" });
-  const messages = await engine.render("demo.md");
-
-  expect(messages).toHaveLength(1);
-  expect(messages[0]?.role).toBe("system");
+test("public exports are available", () => {
+  expect(typeof TemplateEngine).toBe("function");
+  expect(typeof MemoryCache).toBe("function");
+  expect(typeof LRUCache).toBe("function");
 });

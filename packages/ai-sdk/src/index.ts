@@ -1,45 +1,12 @@
-import type { Message, MessageContent } from "guodu-prompt-engine-core";
+import type { Message } from "guodu-prompt-engine-core";
+import { mapAISDKContent } from "./map-content";
+import type { AISDKMessage } from "./types";
 
-export type AISDKRole = "system" | "user" | "assistant";
-
-export interface AISDKTextPart {
-  type: "text";
-  text: string;
-}
-
-export interface AISDKImagePart {
-  type: "image";
-  image: string;
-}
-
-export type AISDKContent = string | Array<AISDKTextPart | AISDKImagePart>;
-
-export interface AISDKMessage {
-  role: AISDKRole;
-  content: AISDKContent;
-}
-
-function mapContent(content: MessageContent): AISDKContent {
-  if (typeof content === "string") return content;
-
-  return content.map((part) => {
-    if (part.type === "text") {
-      return {
-        type: "text",
-        text: part.text
-      };
-    }
-
-    return {
-      type: "image",
-      image: part.image_url.url
-    };
-  });
-}
+export type { AISDKContent, AISDKImagePart, AISDKMessage, AISDKRole, AISDKTextPart } from "./types";
 
 export function toAISDKMessages(messages: Message[]): AISDKMessage[] {
   return messages.map((message) => ({
     role: message.role,
-    content: mapContent(message.content)
+    content: mapAISDKContent(message.content)
   }));
 }

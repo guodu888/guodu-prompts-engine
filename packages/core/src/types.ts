@@ -32,6 +32,7 @@ export interface Cache<T = unknown> {
 export interface TemplateEngineOptions {
   baseDir: string;
   cache?: Cache;
+  strictUndefinedVariables?: boolean;
 }
 
 export type TemplateVariables = Record<string, unknown>;

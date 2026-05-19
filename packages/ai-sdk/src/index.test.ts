@@ -21,3 +21,13 @@ test("toAISDKMessages maps image part", () => {
     expect(mapped[0].content[1]).toEqual({ type: "image", image: "https://example.com/a.png" });
   }
 });
+
+test("toAISDKMessages keeps string content", () => {
+  const messages: Message[] = [{ role: "assistant", content: "done" }];
+  const mapped = toAISDKMessages(messages);
+  expect(mapped).toEqual([{ role: "assistant", content: "done" }]);
+});
+
+test("toAISDKMessages handles empty array", () => {
+  expect(toAISDKMessages([])).toEqual([]);
+});
