@@ -1,6 +1,6 @@
 {
   "name": "guodu-prompt-engine-langchain",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -27,7 +27,7 @@
     "@langchain/core": "^0.3.0"
   },
   "dependencies": {
-    "guodu-prompt-engine-core": "workspace:*"
+    "guodu-prompt-engine-core": "^0.1.1"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
