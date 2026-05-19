@@ -19,6 +19,22 @@ type RenderImagePart = ImageContent;
 
 type RenderRolePart = RenderTextPart | RenderImagePart;
 
+function trimRoleBoundaryStart(text: string): string {
+  return text.replace(/^[ \t]*\r?\n/, "");
+}
+
+function trimRoleBoundaryEnd(text: string): string {
+  return text.replace(/\r?\n[ \t]*$/, "");
+}
+
+function trimBeforeNonTextTag(text: string): string {
+  return text.replace(/[ \t]*\r?\n$/, "");
+}
+
+function trimAfterNonTextTag(text: string): string {
+  return text.replace(/^\r?\n[ \t]*/, "");
+}
+
 export class TemplateEngine {
   public readonly options: TemplateEngineOptions;
 
@@ -164,20 +180,67 @@ export class TemplateEngine {
   }
 
   private toMessageContent(parts: RenderRolePart[]): MessageContent {
-    const hasImage = parts.some((part) => part.type === "image_url");
-    if (!hasImage) {
-      return parts
-        .filter((part): part is RenderTextPart => part.type === "text")
-        .map((part) => part.text)
-        .join("");
+    const normalizedParts = parts.map((part) => (part.type === "text" ? { ...part } : part));
+
+    const firstTextIndex = normalizedParts.findIndex((part) => part.type === "text");
+    if (firstTextIndex >= 0) {
+      const part = normalizedParts[firstTextIndex]!;
+      if (part.type === "text") {
+        part.text = trimRoleBoundaryStart(part.text);
+      }
     }
 
-    return parts.filter((part) => {
+    const lastTextIndex = (() => {
+      for (let i = normalizedParts.length - 1; i >= 0; i -= 1) {
+        if (normalizedParts[i]?.type === "text") {
+          return i;
+        }
+      }
+      return -1;
+    })();
+
+    if (lastTextIndex >= 0) {
+      const part = normalizedParts[lastTextIndex]!;
+      if (part.type === "text") {
+        part.text = trimRoleBoundaryEnd(part.text);
+      }
+    }
+
+    for (let i = 0; i < normalizedParts.length - 1; i += 1) {
+      const current = normalizedParts[i]!;
+      const next = normalizedParts[i + 1]!;
+
+      if (current.type === "text" && next.type === "text") {
+        if (/\r?\n$/.test(current.text) && /^\r?\n/.test(next.text)) {
+          next.text = next.text.replace(/^\r?\n/, "");
+        }
+      }
+
+      if (current.type === "text" && next.type !== "text") {
+        current.text = trimBeforeNonTextTag(current.text);
+      }
+
+      if (current.type !== "text" && next.type === "text") {
+        next.text = trimAfterNonTextTag(next.text);
+      }
+    }
+
+    const compactedParts = normalizedParts.filter((part) => {
       if (part.type === "text") {
         return part.text.length > 0;
       }
       return true;
     });
+
+    const hasImage = parts.some((part) => part.type === "image_url");
+    if (!hasImage) {
+      return compactedParts
+        .filter((part): part is RenderTextPart => part.type === "text")
+        .map((part) => part.text)
+        .join("");
+    }
+
+    return compactedParts;
   }
 
   private async renderTopLevelNodes(

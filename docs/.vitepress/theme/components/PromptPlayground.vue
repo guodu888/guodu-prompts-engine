@@ -1,25 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from "vue";
-
-type Role = "system" | "user" | "assistant";
-
-type TextPart = {
-  type: "text";
-  text: string;
-};
-
-type ImagePart = {
-  type: "image_url";
-  image_url: {
-    url: string;
-    detail?: "low" | "high" | "auto";
-  };
-};
-
-type Message = {
-  role: Role;
-  content: string | Array<TextPart | ImagePart>;
-};
+import { renderTemplateString } from "../../../../packages/core/src/browser-render";
+import type { TemplateVariables } from "../../../../packages/core/src/types";
 
 const template = ref(`{% role:system %}
 你是一名{{course|初中数学}}老师
@@ -109,7 +91,7 @@ onBeforeUnmount(() => {
 const parsedVariables = computed<{
   ok: boolean;
   error: string;
-  value: Record<string, unknown>;
+  value: TemplateVariables;
 }>(() => {
   try {
     const parsed = JSON.parse(variablesText.value);
@@ -119,7 +101,7 @@ const parsedVariables = computed<{
     return {
       ok: true,
       error: "",
-      value: parsed as Record<string, unknown>
+      value: parsed as TemplateVariables
     };
   } catch (error) {
     return {
@@ -129,218 +111,6 @@ const parsedVariables = computed<{
     };
   }
 });
-
-function resolveVariable(nameRaw: string, fallbackRaw: string | undefined, vars: Record<string, unknown>): string {
-  const name = nameRaw.trim();
-  const value = vars[name];
-
-  if (value === undefined) {
-    return fallbackRaw !== undefined ? fallbackRaw : "";
-  }
-
-  if (value === null) {
-    return "";
-  }
-
-  return String(value);
-}
-
-function interpolate(input: string, vars: Record<string, unknown>): string {
-  return input.replace(/{{\s*([^{}|]+?)\s*(?:\|\s*([^{}]*?)\s*)?}}/g, (_, name: string, fallback?: string) => {
-    return resolveVariable(name, fallback, vars);
-  });
-}
-
-function parsePrimitiveOperand(raw: string, vars: Record<string, unknown>): string | number | boolean {
-  const token = raw.trim();
-
-  const quoted = token.match(/^['\"]([\s\S]*)['\"]$/);
-  if (quoted?.[1] !== undefined) {
-    return quoted[1];
-  }
-
-  if (token === "true") return true;
-  if (token === "false") return false;
-
-  if (/^-?\d+(\.\d+)?$/.test(token)) {
-    return Number(token);
-  }
-
-  const value = vars[token];
-  if (typeof value === "number" || typeof value === "boolean") {
-    return value;
-  }
-
-  return resolveVariable(token, undefined, vars);
-}
-
-function evalCondition(expr: string, vars: Record<string, unknown>): boolean {
-  const match = expr.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=|>=|<=|>|<)\s*([\s\S]+)$/);
-  if (!match) {
-    throw new Error(`不支持的条件表达式: ${expr}`);
-  }
-
-  const left = parsePrimitiveOperand(match[1] ?? "", vars);
-  const op = match[2] ?? "";
-  const right = parsePrimitiveOperand(match[3] ?? "", vars);
-
-  if (op === "==") return String(left) === String(right);
-  if (op === "!=") return String(left) !== String(right);
-
-  if (typeof left !== "number" || typeof right !== "number") {
-    throw new Error(`运算符 ${op} 仅支持数值比较。`);
-  }
-
-  if (op === ">") return left > right;
-  if (op === "<") return left < right;
-  if (op === ">=") return left >= right;
-  return left <= right;
-}
-
-function renderIfBlocks(input: string, vars: Record<string, unknown>): string {
-  let output = input;
-  const ifBlockRegex = /{%\s*if\s+([\s\S]*?)\s*%}([\s\S]*?){%\s*endif\s*%}/g;
-
-  let changed = true;
-  while (changed) {
-    changed = false;
-    output = output.replace(ifBlockRegex, (_full, firstCondition: string, body: string) => {
-      changed = true;
-
-      const segments = body.split(/({%\s*elseif\s+[\s\S]*?\s*%}|{%\s*else\s*%})/g).filter(Boolean);
-      const branches: Array<{ condition: string | null; content: string }> = [];
-
-      let currentCondition: string | null = firstCondition;
-      let currentContent = "";
-
-      for (const segment of segments) {
-        if (/^{%\s*elseif\s+/.test(segment)) {
-          branches.push({ condition: currentCondition, content: currentContent });
-          currentContent = "";
-          const elseifMatch = segment.match(/{%\s*elseif\s+([\s\S]*?)\s*%}/);
-          currentCondition = elseifMatch?.[1]?.trim() ?? "";
-          continue;
-        }
-
-        if (/^{%\s*else\s*%}/.test(segment)) {
-          branches.push({ condition: currentCondition, content: currentContent });
-          currentContent = "";
-          currentCondition = null;
-          continue;
-        }
-
-        currentContent += segment;
-      }
-
-      branches.push({ condition: currentCondition, content: currentContent });
-
-      for (const branch of branches) {
-        if (branch.condition === null) {
-          return branch.content;
-        }
-
-        if (evalCondition(branch.condition, vars)) {
-          return branch.content;
-        }
-      }
-
-      return "";
-    });
-  }
-
-  return output;
-}
-
-function parseImageBlock(raw: string, vars: Record<string, unknown>): ImagePart {
-  const attrs: Record<string, string> = {};
-
-  for (const line of raw.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-
-    const sep = trimmed.indexOf(":");
-    if (sep <= 0) {
-      throw new Error(`Image 属性格式错误: ${trimmed}`);
-    }
-
-    const key = trimmed.slice(0, sep).trim();
-    const value = trimmed.slice(sep + 1).trim();
-    attrs[key] = interpolate(value, vars);
-  }
-
-  if (!attrs.url) {
-    throw new Error("Image 块缺少 url 属性。");
-  }
-
-  const detail = (attrs.detail ?? "auto").toLowerCase();
-  if (detail !== "low" && detail !== "high" && detail !== "auto") {
-    throw new Error(`Image detail 非法: ${detail}`);
-  }
-
-  return {
-    type: "image_url",
-    image_url: {
-      url: attrs.url,
-      detail: detail as "low" | "high" | "auto"
-    }
-  };
-}
-
-function renderRoleContent(contentRaw: string, vars: Record<string, unknown>): string | Array<TextPart | ImagePart> {
-  const imageRegex = /{%\s*image\s*%}([\s\S]*?){%\s*endimage\s*%}/g;
-
-  const parts: Array<TextPart | ImagePart> = [];
-  let lastIndex = 0;
-
-  for (const match of contentRaw.matchAll(imageRegex)) {
-    const index = match.index ?? 0;
-    const before = contentRaw.slice(lastIndex, index);
-    if (before) {
-      parts.push({ type: "text", text: interpolate(before, vars) });
-    }
-
-    parts.push(parseImageBlock(match[1] ?? "", vars));
-    lastIndex = index + (match[0]?.length ?? 0);
-  }
-
-  const tail = contentRaw.slice(lastIndex);
-  if (tail) {
-    parts.push({ type: "text", text: interpolate(tail, vars) });
-  }
-
-  if (parts.some((part) => part.type === "image_url")) {
-    return parts.filter((part) => part.type !== "text" || part.text.length > 0);
-  }
-
-  return parts
-    .map((part) => (part.type === "text" ? part.text : ""))
-    .join("");
-}
-
-function renderTemplate(input: string, vars: Record<string, unknown>): Message[] {
-  if (/{%\s*include\s+/.test(input)) {
-    throw new Error("Playground 浏览器模式暂不支持 include，请在本地使用 core 引擎验证 include。");
-  }
-
-  const withConditions = renderIfBlocks(input, vars);
-  const roleRegex = /{%\s*role:(system|user|assistant)\s*%}([\s\S]*?){%\s*endrole\s*%}/g;
-
-  const messages: Message[] = [];
-  for (const match of withConditions.matchAll(roleRegex)) {
-    const role = (match[1] ?? "") as Role;
-    const contentRaw = match[2] ?? "";
-    messages.push({
-      role,
-      content: renderRoleContent(contentRaw, vars)
-    });
-  }
-
-  if (messages.length === 0) {
-    throw new Error("模板中没有解析出 role 块。请至少包含一个 {% role:* %} ... {% endrole %}。");
-  }
-
-  return messages;
-}
 
 const output = computed(() => {
   const variableState = parsedVariables.value;
@@ -354,7 +124,11 @@ const output = computed(() => {
   }
 
   try {
-    const messages = renderTemplate(template.value, variableState.value);
+    if (/{%\s*include\s+/.test(template.value)) {
+      throw new Error("Playground 浏览器模式暂不支持 include，请在本地使用 core 引擎验证 include。");
+    }
+
+    const messages = renderTemplateString(template.value, variableState.value);
     return {
       ok: true,
       error: "",

@@ -214,3 +214,71 @@ test("throws on nested role blocks", async () => {
   const engine = new TemplateEngine({ baseDir });
   await expect(engine.render("main.md")).rejects.toThrow("Nested role blocks are not supported");
 });
+
+test("trims role boundary newlines for text and multimodal content", async () => {
+  const baseDir = await createTemplateDir({
+    "plain.md": "{% role:system %}\nhello\n{% endrole %}",
+    "multi.md": "{% role:user %}\n题目如下\n{% image %}\nurl: https://example.com/x.png\n{% endimage %}\n请给出答案\n{% endrole %}"
+  });
+
+  const engine = new TemplateEngine({ baseDir });
+
+  const plain = await engine.render("plain.md");
+  expect(plain).toEqual([{ role: "system", content: "hello" }]);
+
+  const multi = await engine.render("multi.md");
+  expect(multi).toEqual([
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "题目如下" },
+        { type: "image_url", image_url: { url: "https://example.com/x.png", detail: "auto" } },
+        { type: "text", text: "请给出答案" }
+      ]
+    }
+  ]);
+});
+
+test("normalizes control-tag and image-tag boundary newlines as expected", async () => {
+  const baseDir = await createTemplateDir({
+    "example.md": `{% role:system %}
+你是一名{{course|初中数学}}老师
+{% if level == "advanced" %}
+- 你要给出更深入的解题步骤
+{% else %}
+- 你要用更直观的方式讲解
+{% endif %}
+{% endrole %}
+
+{% role:user %}
+请分析这道题
+{% image %}
+url: https://example.com/question.png
+detail: high
+{% endimage %}
+{% endrole %}`
+  });
+
+  const engine = new TemplateEngine({ baseDir });
+  const messages = await engine.render("example.md", { course: "英语", level: "advanced" });
+
+  expect(messages).toEqual([
+    {
+      role: "system",
+      content: "你是一名英语老师\n- 你要给出更深入的解题步骤\n"
+    },
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "请分析这道题" },
+        {
+          type: "image_url",
+          image_url: {
+            url: "https://example.com/question.png",
+            detail: "high"
+          }
+        }
+      ]
+    }
+  ]);
+});

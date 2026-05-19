@@ -18,8 +18,8 @@ test("README 示例1: 简单单轮对话", async () => {
   expect(messages[0]?.role).toBe("system");
   expect(typeof messages[0]?.content).toBe("string");
   expect(String(messages[0]?.content)).toContain("英语老师");
-  expect(messages[1]).toEqual({ role: "user", content: "\n# 用户\n你好老师\n" });
-  expect(messages[2]).toEqual({ role: "assistant", content: "\n你好呀，有什么可以帮你的吗？\n" });
+  expect(messages[1]).toEqual({ role: "user", content: "# 用户\n你好老师" });
+  expect(messages[2]).toEqual({ role: "assistant", content: "你好呀，有什么可以帮你的吗？" });
 });
 
 test("README 示例2: 多模态内容", async () => {
@@ -34,15 +34,14 @@ test("README 示例2: 多模态内容", async () => {
     {
       role: "user",
       content: [
-        { type: "text", text: "\n题目信息如下：\n" },
+        { type: "text", text: "题目信息如下：" },
         {
           type: "image_url",
           image_url: {
             url: "https://example.com/image.png",
             detail: "high"
           }
-        },
-        { type: "text", text: "\n" }
+        }
       ]
     }
   ]);
