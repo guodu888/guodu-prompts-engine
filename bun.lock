@@ -13,9 +13,9 @@
     },
     "packages/ai-sdk": {
       "name": "guodu-prompt-engine-ai-sdk",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
-        "guodu-prompt-engine-core": "workspace:*",
+        "guodu-prompt-engine-core": "^0.1.2",
       },
       "peerDependencies": {
         "ai": "^4.0.0",
@@ -23,20 +23,20 @@
     },
     "packages/core": {
       "name": "guodu-prompt-engine-core",
-      "version": "0.1.1",
+      "version": "0.1.2",
     },
     "packages/langchain": {
       "name": "guodu-prompt-engine-langchain",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
-        "guodu-prompt-engine-core": "workspace:*",
+        "guodu-prompt-engine-core": "^0.1.2",
       },
       "peerDependencies": {
         "@langchain/core": "^0.3.0",
       },
     },
     "packages/vscode-extension": {
-      "name": "guodu-template-vscode",
+      "name": "guodu-prompt-engine-vscode",
       "version": "0.1.0",
       "devDependencies": {
         "@types/node": "^20.16.5",
@@ -366,7 +366,7 @@
 
     "guodu-prompt-engine-langchain": ["guodu-prompt-engine-langchain@workspace:packages/langchain"],
 
-    "guodu-template-vscode": ["guodu-template-vscode@workspace:packages/vscode-extension"],
+    "guodu-prompt-engine-vscode": ["guodu-prompt-engine-vscode@workspace:packages/vscode-extension"],
 
     "has-flag": ["has-flag@4.0.0", "", {}, "sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ=="],
 
@@ -530,11 +530,7 @@
 
     "zwitch": ["zwitch@2.0.4", "", {}, "sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A=="],
 
-    "bun-types/@types/node": ["@types/node@25.9.0", "", { "dependencies": { "undici-types": ">=7.24.0 <7.24.7" } }, "sha512-AOQwYUNolgy3VosiRqXrACUXTN8nJUtPl7FJXMqZVyxiiCLhQuG3jXKvCS1ALr+Y2OmZhzzLVlYPEqJaiqkaJQ=="],
-
     "langsmith/chalk": ["chalk@4.1.2", "", { "dependencies": { "ansi-styles": "^4.1.0", "supports-color": "^7.1.0" } }, "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="],
-
-    "bun-types/@types/node/undici-types": ["undici-types@7.24.6", "", {}, "sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg=="],
 
     "langsmith/chalk/ansi-styles": ["ansi-styles@4.3.0", "", { "dependencies": { "color-convert": "^2.0.1" } }, "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg=="],
   }
