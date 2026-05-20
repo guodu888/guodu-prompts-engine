@@ -4,6 +4,7 @@ export default defineConfig({
   title: "Guodu Prompt Engine",
   description: "AI messages template engine for OpenAI-compatible chat/completions payloads",
   lang: "zh-CN",
+  base: "/guodu-prompts-engine/",
   cleanUrls: true,
   themeConfig: {
     nav: [
