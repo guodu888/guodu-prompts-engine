@@ -265,7 +265,7 @@ detail: high
   expect(messages).toEqual([
     {
       role: "system",
-      content: "你是一名英语老师\n- 你要给出更深入的解题步骤\n"
+      content: "你是一名英语老师\n- 你要给出更深入的解题步骤"
     },
     {
       role: "user",

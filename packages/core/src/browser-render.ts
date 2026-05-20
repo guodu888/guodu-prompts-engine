@@ -25,6 +25,10 @@ function trimRoleBoundaryEnd(text: string): string {
   return text.replace(/\r?\n[ \t]*$/, "");
 }
 
+function trimBeforeControlEndTag(text: string): string {
+  return text.replace(/[ \t]*\r?\n$/, "");
+}
+
 function trimBeforeNonTextTag(text: string): string {
   return text.replace(/[ \t]*\r?\n$/, "");
 }
@@ -188,6 +192,10 @@ export function renderTemplateString(
 
         if (branch) {
           const nested = renderRoleChildren(branch.children, stack);
+          const lastNested = nested[nested.length - 1];
+          if (lastNested?.type === "text") {
+            lastNested.text = trimBeforeControlEndTag(lastNested.text);
+          }
           flushTextBuffer();
           parts.push(...nested);
         }
