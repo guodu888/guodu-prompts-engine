@@ -1,18 +1,13 @@
-export type AISDKRole = "system" | "user" | "assistant";
+import type {
+  AssistantContent,
+  CoreMessage,
+  ImagePart,
+  TextPart,
+  UserContent
+} from "ai";
 
-export interface AISDKTextPart {
-  type: "text";
-  text: string;
-}
-
-export interface AISDKImagePart {
-  type: "image";
-  image: string;
-}
-
-export type AISDKContent = string | Array<AISDKTextPart | AISDKImagePart>;
-
-export interface AISDKMessage {
-  role: AISDKRole;
-  content: AISDKContent;
-}
+export type AISDKRole = CoreMessage["role"];
+export type AISDKTextPart = TextPart;
+export type AISDKImagePart = ImagePart;
+export type AISDKContent = string | UserContent | AssistantContent;
+export type AISDKMessage = CoreMessage;
