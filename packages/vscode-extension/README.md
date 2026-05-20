@@ -33,3 +33,13 @@ The language is automatically enabled for:
 ```bash
 bun run --filter guodu-prompt-engine-vscode build
 ```
+
+## Package VSIX
+
+From the repository root, run:
+
+```bash
+bun run package:vscode
+```
+
+This generates a `.vsix` file inside `packages/vscode-extension` that can be installed in VS Code via "Install from VSIX".

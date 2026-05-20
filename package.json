@@ -14,6 +14,7 @@
     "build:core": "bun run --filter guodu-prompt-engine-core build",
     "build:adapters": "bun run --filter guodu-prompt-engine-langchain build && bun run --filter guodu-prompt-engine-ai-sdk build",
     "build:vscode": "bun run --filter guodu-prompt-engine-vscode build",
+    "package:vscode": "bun run --filter guodu-prompt-engine-vscode package",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",

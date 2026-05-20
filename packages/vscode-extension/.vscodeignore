@@ -1,0 +1,7 @@
+.cursor/**
+src/**
+node_modules/**
+tsconfig.json
+tsconfig.tsbuildinfo
+.gitignore
+.cursorignore

@@ -12,6 +12,7 @@
     "Programming Languages"
   ],
   "main": "./dist/extension.js",
+  "activationEvents": ["onLanguage:gdprompt"],
   "contributes": {
     "languages": [
       {
@@ -46,7 +47,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "package": "bun run build && bunx @vscode/vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^20.16.5",
