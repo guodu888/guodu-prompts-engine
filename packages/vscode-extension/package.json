@@ -1,0 +1,56 @@
+{
+  "name": "guodu-prompt-engine-vscode",
+  "displayName": "Guodu Prompt Engine",
+  "description": "Markdown-based language support for Guodu prompt templates (.gdprompt) with custom tags, diagnostics, hovers, and completions.",
+  "version": "0.1.0",
+  "publisher": "guodu888",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "gdprompt",
+        "aliases": [
+          "Guodu Prompt",
+          "Guodu Prompt Template"
+        ],
+        "extensions": [
+          ".gdprompt"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "gdprompt",
+        "scopeName": "source.gdprompt",
+        "path": "./syntaxes/guodu-template.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Guodu Prompt Engine",
+      "properties": {
+        "gdprompt.validateOnType": {
+          "type": "boolean",
+          "default": true,
+          "description": "Validate .gdprompt files while typing."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.5",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "name": "Guodu Prompt Template",
+  "scopeName": "source.gdprompt",
+  "patterns": [
+    { "include": "text.html.markdown" },
+    { "include": "#tag-block" },
+    { "include": "#variable" }
+  ],
+  "repository": {
+    "tag-block": {
+      "begin": "\\{%",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.tag.begin.guodu" }
+      },
+      "end": "%\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.tag.end.guodu" }
+      },
+      "name": "meta.tag.guodu",
+      "patterns": [
+        {
+          "match": "\\b(role)\\s*:\\s*(system|user|assistant)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.control.guodu"
+            },
+            "2": {
+              "name": "entity.name.type.role.guodu"
+            }
+          }
+        },
+        {
+          "match": "\\b(endrole|if|elseif|else|endif|include|image|endimage)\\b",
+          "name": "keyword.control.guodu"
+        },
+        {
+          "match": "(?<=\\bif\\s|\\belseif\\s).+",
+          "name": "meta.expression.condition.guodu"
+        },
+        {
+          "match": "\"[^\"\\n]*\"|'[^'\\n]*'",
+          "name": "string.quoted.guodu"
+        },
+        {
+          "match": "\\b(url|detail)\\b(?=\\s*:)",
+          "name": "variable.other.key.guodu"
+        },
+        {
+          "match": "\\b(low|high|auto)\\b",
+          "name": "constant.language.guodu"
+        },
+        {
+          "match": "(==|!=|>=|<=|>|<)",
+          "name": "keyword.operator.comparison.guodu"
+        }
+      ]
+    },
+    "variable": {
+      "begin": "\\{\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.variable.begin.guodu" }
+      },
+      "end": "\\}\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.variable.end.guodu" }
+      },
+      "name": "meta.variable.guodu",
+      "patterns": [
+        {
+          "match": "\\|",
+          "name": "keyword.operator.assignment.guodu"
+        },
+        {
+          "match": "[A-Za-z_][A-Za-z0-9_.-]*",
+          "name": "entity.name.variable.guodu"
+        },
+        {
+          "match": "\"[^\"\\n]*\"|'[^'\\n]*'",
+          "name": "string.quoted.default-value.guodu"
+        }
+      ]
+    }
+  }
+}

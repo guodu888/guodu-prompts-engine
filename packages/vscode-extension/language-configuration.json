@@ -1,0 +1,36 @@
+{
+  "comments": {
+    "lineComment": "#"
+  },
+  "brackets": [
+    ["{%", "%}"],
+    ["{{", "}}"],
+    ["(", ")"],
+    ["[", "]"],
+    ["{", "}"]
+  ],
+  "folding": {
+    "markers": {
+      "start": "^\\s*\\{%-?\\s*(?:role:[^%]+|if\\b.*|image\\b)\\s*-?%\\}\\s*$",
+      "end": "^\\s*\\{%-?\\s*(?:endrole|endif|endimage)\\s*-?%\\}\\s*$"
+    }
+  },
+  "autoClosingPairs": [
+    { "open": "{{", "close": "}}" },
+    { "open": "{%", "close": "%}" },
+    { "open": "\"", "close": "\"" },
+    { "open": "'", "close": "'" },
+    { "open": "(", "close": ")" },
+    { "open": "[", "close": "]" },
+    { "open": "{", "close": "}" }
+  ],
+  "surroundingPairs": [
+    ["{{", "}}"],
+    ["{%", "%}"],
+    ["\"", "\""],
+    ["'", "'"],
+    ["(", ")"],
+    ["[", "]"],
+    ["{", "}"]
+  ]
+}

@@ -6,17 +6,19 @@
   "workspaces": [
     "packages/core",
     "packages/langchain",
-    "packages/ai-sdk"
+    "packages/ai-sdk",
+    "packages/vscode-extension"
   ],
   "scripts": {
     "build": "tsc -b",
     "build:core": "bun run --filter guodu-prompt-engine-core build",
     "build:adapters": "bun run --filter guodu-prompt-engine-langchain build && bun run --filter guodu-prompt-engine-ai-sdk build",
+    "build:vscode": "bun run --filter guodu-prompt-engine-vscode build",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "test": "bun test packages/*/src",
-    "typecheck": "bun run --filter guodu-prompt-engine-core typecheck && bun run --filter guodu-prompt-engine-langchain typecheck && bun run --filter guodu-prompt-engine-ai-sdk typecheck",
+    "typecheck": "bun run --filter guodu-prompt-engine-core typecheck && bun run --filter guodu-prompt-engine-langchain typecheck && bun run --filter guodu-prompt-engine-ai-sdk typecheck && bun run --filter guodu-prompt-engine-vscode typecheck",
     "release": "bun run scripts/release.ts",
     "release:dry": "bun run scripts/release.ts --dry"
   },

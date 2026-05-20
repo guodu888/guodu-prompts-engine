@@ -1,0 +1,26 @@
+{% role:system %}
+你是一个智能助手。
+{% endrole %}
+
+{% if user.level == "advanced" %}
+{% role:assistant %}
+这是高级用户的回复。
+{% endrole %}
+{% elseif user.level == "beginner" %}
+{% role:assistant %}
+这是初级用户的回复。
+{% endrole %}
+{% else %}
+{% role:assistant %}
+这是默认回复。
+{% endrole %}
+{% endif %}
+
+问题：{{question|默认问题}}
+
+{% image %}
+url: {{imageUrl|https://example.com/image.png}}
+detail: {{detail|auto}}
+{% endimage %}
+
+{% include "./context.gdprompt" %}
