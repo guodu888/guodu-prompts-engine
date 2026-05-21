@@ -16,7 +16,7 @@ This extension adds first-party editing support for Guodu prompt templates. It i
 - Role tags highlight the `role` keyword and the `system/user/assistant` value separately.
 - Variables are highlighted with stronger scopes for the delimiters, variable name, and default value.
 - Snippet completions for role/if/include/image/variables.
-- Hover docs for core tags.
+- Hover docs for core tags, including supported comparison and logical operators (`&&`, `||`, `()`).
 
 ## Markdown Base
 

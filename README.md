@@ -6,7 +6,7 @@
 
 - ✅ **变量插值** - 支持 `{{variable}}` 和 `{{variable|defaultValue}}` 语法
 - ✅ **文件包含** - 使用 `{% include "./file.md" %}` 引入其他模板文件
-- ✅ **条件渲染** - 支持 `{% if %}`, `{% elseif %}`, `{% endif %}` 条件判断
+- ✅ **条件渲染** - 支持 `{% if %}`, `{% elseif %}`, `{% endif %}` 条件判断，支持 `&&`、`||`、`()` 逻辑组合
 - ✅ **多角色消息** - 支持 `system`, `user`, `assistant` 三种角色
 - ✅ **多模态内容** - 支持文本和图片混合内容
 - ✅ **智能缓存** - 基于文件 mtime 的自动缓存机制，文件更新时自动失效
@@ -108,7 +108,7 @@ console.log(messages);
 
 ### 4. 条件渲染
 
-支持条件判断和分支：
+支持条件判断和分支，以及 `&&`、`||`、`()` 逻辑运算：
 
 ```markdown
 {% if course == "小学语文" %}
@@ -116,7 +116,19 @@ console.log(messages);
 {% elseif course == "初中数学" %}
 - 公式输出为`<span data-latex="公式" data-type="inline-math"></span>`格式
 {% endif %}
+
+{# 使用 && 和 || 进行逻辑组合 #}
+{% if (level == "advanced" || level == "expert") && score > 90 %}
+- 开启高阶模式
+{% elseif level == "beginner" || score < 60 %}
+- 开启基础辅导模式
+{% else %}
+- 使用标准模式
+{% endif %}
 ```
+
+比较操作符：`==`、`!=`、`>`、`<`、`>=`、`<=`  
+逻辑操作符：`&&`（与）、`||`（或）、`()`（括号分组，`&&` 优先级高于 `||`）
 
 ### 5. 图片内容
 

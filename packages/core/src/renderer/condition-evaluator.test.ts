@@ -16,8 +16,34 @@ test("supports variable-to-variable compare", () => {
   expect(evaluateCondition("a == b", { a: "x", b: "y" })).toBe(false);
 });
 
-test("throws for unsupported syntax", () => {
-  expect(() => evaluateCondition("a && b", { a: 1, b: 1 })).toThrow("Unsupported condition expression");
+test("supports && operator", () => {
+  expect(evaluateCondition('level == "advanced" && score > 60', { level: "advanced", score: 80 })).toBe(true);
+  expect(evaluateCondition('level == "advanced" && score > 60', { level: "advanced", score: 50 })).toBe(false);
+  expect(evaluateCondition('level == "basic" && score > 60', { level: "advanced", score: 80 })).toBe(false);
+});
+
+test("supports || operator", () => {
+  expect(evaluateCondition('level == "advanced" || level == "expert"', { level: "advanced" })).toBe(true);
+  expect(evaluateCondition('level == "advanced" || level == "expert"', { level: "expert" })).toBe(true);
+  expect(evaluateCondition('level == "advanced" || level == "expert"', { level: "basic" })).toBe(false);
+});
+
+test("supports parentheses for grouping", () => {
+  expect(evaluateCondition('(level == "advanced" || level == "expert") && score > 60', { level: "advanced", score: 80 })).toBe(true);
+  expect(evaluateCondition('(level == "advanced" || level == "expert") && score > 60', { level: "basic", score: 80 })).toBe(false);
+  expect(evaluateCondition('(level == "advanced" || level == "expert") && score > 60', { level: "advanced", score: 50 })).toBe(false);
+});
+
+test("supports nested parentheses", () => {
+  expect(evaluateCondition('((a == 1 || a == 2) && (b == 3 || b == 4))', { a: 1, b: 3 })).toBe(true);
+  expect(evaluateCondition('((a == 1 || a == 2) && (b == 3 || b == 4))', { a: 1, b: 5 })).toBe(false);
+});
+
+test("&& has higher precedence than ||", () => {
+  // a || b && c  =>  a || (b && c)
+  expect(evaluateCondition('a == 1 || b == 2 && c == 3', { a: 1, b: 9, c: 9 })).toBe(true);
+  expect(evaluateCondition('a == 1 || b == 2 && c == 3', { a: 9, b: 2, c: 3 })).toBe(true);
+  expect(evaluateCondition('a == 1 || b == 2 && c == 3', { a: 9, b: 2, c: 9 })).toBe(false);
 });
 
 test("supports numeric comparison operators", () => {

@@ -2,13 +2,13 @@
 你是一个智能助手。
 {% endrole %}
 
-{% if user.level == "advanced" %}
+{% if (level == "advanced" || level == "expert") && score > 90 %}
 {% role:assistant %}
-这是高级用户的回复。
+这是高级且高分用户的回复。
 {% endrole %}
-{% elseif user.level == "beginner" %}
+{% elseif level == "beginner" || score < 60 %}
 {% role:assistant %}
-这是初级用户的回复。
+这是初学者或低分用户的回复。
 {% endrole %}
 {% else %}
 {% role:assistant %}

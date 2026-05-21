@@ -43,8 +43,8 @@ const TAG_SET = new Set<TagName>([
 const tagDocs: Record<string, string> = {
   role: "`{% role:system|user|assistant %}` 定义一个消息角色块。",
   endrole: "`{% endrole %}` 结束角色块。",
-  if: "`{% if condition %}` 条件开始，支持 == != > < >= <=。",
-  elseif: "`{% elseif condition %}` 条件分支。",
+  if: "`{% if condition %}` 条件开始，支持比较运算符 `== != > < >= <=`，逻辑运算符 `&& ||`，以及括号分组 `()`。",
+  elseif: "`{% elseif condition %}` 条件分支，同样支持 `&& || ()` 逻辑运算符。",
   else: "`{% else %}` 默认分支。",
   endif: "`{% endif %}` 结束条件块。",
   include: "`{% include \"./partial.gdprompt\" %}` 引入模板文件，路径必须带引号。",
