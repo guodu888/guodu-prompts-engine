@@ -23,7 +23,7 @@
 
 1. 不修改普通文本内容（包括空格、标点、换行顺序），除非该行完全由模板标签组成。
 2. 不重排块结构顺序：`role/if/for/image/include` 的相对顺序不可调整。
-3. 不改写变量表达式内部字符：`{{ ... }}` 中的变量路径、默认值、过滤语法（未来）保持原样。
+3. 不改写变量表达式内部字符：<code v-pre>{{ ... }}</code> 中的变量路径、默认值、过滤语法（未来）保持原样。
 4. 不改写条件表达式语义：`if/elseif` 中仅允许做外层空白整理，不做运算符重写。
 5. 不跨越 Markdown 语义边界：不得把正文改为列表/代码块，也不得破坏现有列表/引用/表格结构。
 
@@ -50,7 +50,7 @@
 
 标准形态：
 
-```gdprompt
+```md
 {% role:system %}
 ...
 {% endrole %}
@@ -66,7 +66,7 @@
 
 标准形态：
 
-```gdprompt
+```md
 {% if condition %}
 ...
 {% elseif otherCondition %}
@@ -87,7 +87,7 @@
 
 标准形态：
 
-```gdprompt
+```md
 {% for item in items %}
 ...
 {% endfor %}
@@ -103,7 +103,7 @@
 
 标准形态：
 
-```gdprompt
+```md
 {% include "./path/to/file.gdprompt" %}
 ```
 
@@ -117,7 +117,7 @@
 
 标准形态：
 
-```gdprompt
+```md
 {% image %}
 url: https://example.com/image.png
 detail: auto
