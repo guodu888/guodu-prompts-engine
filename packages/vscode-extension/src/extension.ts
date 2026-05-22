@@ -9,6 +9,8 @@ type TagName =
   | "elseif"
   | "else"
   | "endif"
+  | "for"
+  | "endfor"
   | "include"
   | "image"
   | "endimage";
@@ -25,9 +27,15 @@ interface IncludeTarget {
   pathRange: vscode.Range;
 }
 
+interface FormatterSettings {
+  enabled: boolean;
+  normalizeIncludeQuotes: boolean;
+  maxConsecutiveBlankLines: number;
+}
+
 const LANGUAGE_ID = "gdprompt";
 const DIAGNOSTIC_SOURCE = "gdprompt";
-const ALLOWED_ROLES = new Set(["system", "user", "assistant"]);
+const ALLOWED_ROLES = new Set(["system", "user", "assistant", "tool", "tool_result"]);
 const TAG_SET = new Set<TagName>([
   "role",
   "endrole",
@@ -35,18 +43,22 @@ const TAG_SET = new Set<TagName>([
   "elseif",
   "else",
   "endif",
+  "for",
+  "endfor",
   "include",
   "image",
   "endimage"
 ]);
 
 const tagDocs: Record<string, string> = {
-  role: "`{% role:system|user|assistant %}` 定义一个消息角色块。",
+  role: "`{% role:system|user|assistant|tool|tool_result %}` 定义一个消息角色块。",
   endrole: "`{% endrole %}` 结束角色块。",
   if: "`{% if condition %}` 条件开始，支持比较运算符 `== != > < >= <=`，逻辑运算符 `&& ||`，以及括号分组 `()`。",
   elseif: "`{% elseif condition %}` 条件分支，同样支持 `&& || ()` 逻辑运算符。",
   else: "`{% else %}` 默认分支。",
   endif: "`{% endif %}` 结束条件块。",
+  for: "`{% for item in items %}` 循环开始，支持数组或对象迭代。",
+  endfor: "`{% endfor %}` 结束循环块。",
   include: "`{% include \"./partial.gdprompt\" %}` 引入模板文件，路径必须带引号。",
   image: "`{% image %}` 开始图片块，仅允许纯文本属性行（url/detail）。",
   endimage: "`{% endimage %}` 结束图片块。"
@@ -116,24 +128,30 @@ async function resolveIncludeUri(document: vscode.TextDocument, includePath: str
 
 function parseTagContent(rawTag: string): { name: string; arg?: string } {
   const content = rawTag.slice(2, -2).trim();
+  const lowered = content.toLowerCase();
 
-  if (content.startsWith("role:")) {
-    return { name: "role", arg: content.slice(5).trim() };
+  if (/^role\s*:/i.test(content)) {
+    const separatorIndex = content.indexOf(":");
+    return { name: "role", arg: content.slice(separatorIndex + 1).trim() };
   }
 
-  if (content.startsWith("if ")) {
-    return { name: "if", arg: content.slice(3).trim() };
+  if (/^if\s+/i.test(content)) {
+    return { name: "if", arg: content.slice(2).trim() };
   }
 
-  if (content.startsWith("elseif ")) {
-    return { name: "elseif", arg: content.slice(7).trim() };
+  if (/^elseif\s+/i.test(content)) {
+    return { name: "elseif", arg: content.slice(6).trim() };
   }
 
-  if (content.startsWith("include ")) {
-    return { name: "include", arg: content.slice(8).trim() };
+  if (/^include\s+/i.test(content)) {
+    return { name: "include", arg: content.slice(7).trim() };
   }
 
-  return { name: content };
+  if (/^for\s+/i.test(content)) {
+    return { name: "for", arg: content.slice(3).trim() };
+  }
+
+  return { name: lowered };
 }
 
 function collectTagTokens(document: vscode.TextDocument): TagToken[] {
@@ -296,7 +314,7 @@ function validateDocument(document: vscode.TextDocument, collection: vscode.Diag
         addDiagnostic(
           diagnostics,
           tag.range,
-          `无效角色: ${role || "(空)"}，只允许 system/user/assistant。`,
+          `无效角色: ${role || "(空)"}，只允许 system/user/assistant/tool/tool_result。`,
           vscode.DiagnosticSeverity.Error
         );
       }
@@ -364,6 +382,25 @@ function validateDocument(document: vscode.TextDocument, collection: vscode.Diag
       continue;
     }
 
+    if (tagName === "for") {
+      if (!parsed.arg || !/^([A-Za-z_][A-Za-z0-9_]*)\s+in\s+([\s\S]+)$/.test(parsed.arg)) {
+        addDiagnostic(diagnostics, tag.range, "for 标签必须符合 `for item in items` 语法。", vscode.DiagnosticSeverity.Error);
+      }
+      stack.push(tag);
+      continue;
+    }
+
+    if (tagName === "endfor") {
+      const openerIndex = [...stack].reverse().findIndex((item) => parseTagContent(item.raw).name === "for");
+      if (openerIndex < 0) {
+        addDiagnostic(diagnostics, tag.range, "endfor 缺少对应的 for 起始标签。", vscode.DiagnosticSeverity.Error);
+      } else {
+        const index = stack.length - 1 - openerIndex;
+        stack.splice(index, 1);
+      }
+      continue;
+    }
+
     if (tagName === "include") {
       if (!parsed.arg) {
         addDiagnostic(diagnostics, tag.range, "include 标签需要文件路径参数。", vscode.DiagnosticSeverity.Error);
@@ -394,7 +431,16 @@ function validateDocument(document: vscode.TextDocument, collection: vscode.Diag
 
   for (const item of stack) {
     const { name } = parseTagContent(item.raw);
-    const closer = name === "role" ? "endrole" : name === "if" ? "endif" : name === "image" ? "endimage" : "结束标签";
+    const closer =
+      name === "role"
+        ? "endrole"
+        : name === "if"
+          ? "endif"
+          : name === "for"
+            ? "endfor"
+            : name === "image"
+              ? "endimage"
+              : "结束标签";
     addDiagnostic(
       diagnostics,
       item.range,
@@ -406,11 +452,328 @@ function validateDocument(document: vscode.TextDocument, collection: vscode.Diag
   collection.set(document.uri, diagnostics);
 }
 
+function normalizeTagFromContent(content: string, normalizeIncludeQuotes: boolean): string {
+  const roleMatch = content.match(/^role\s*:\s*(.+)$/i);
+  if (roleMatch?.[1]) {
+    return `{% role:${roleMatch[1].trim().toLowerCase()} %}`;
+  }
+
+  const ifMatch = content.match(/^if\s+([\s\S]+)$/i);
+  if (ifMatch?.[1]) {
+    return `{% if ${ifMatch[1].trim()} %}`;
+  }
+
+  const elseifMatch = content.match(/^elseif\s+([\s\S]+)$/i);
+  if (elseifMatch?.[1]) {
+    return `{% elseif ${elseifMatch[1].trim()} %}`;
+  }
+
+  if (/^else$/i.test(content)) {
+    return "{% else %}";
+  }
+
+  if (/^endif$/i.test(content)) {
+    return "{% endif %}";
+  }
+
+  const forMatch = content.match(/^for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+([\s\S]+)$/i);
+  if (forMatch?.[1] && forMatch[2]) {
+    return `{% for ${forMatch[1]} in ${forMatch[2].trim()} %}`;
+  }
+
+  if (/^endfor$/i.test(content)) {
+    return "{% endfor %}";
+  }
+
+  const includeMatch = content.match(/^include\s+([\s\S]+)$/i);
+  if (includeMatch?.[1]) {
+    const rawArg = includeMatch[1].trim();
+    if (normalizeIncludeQuotes) {
+      const quoted = rawArg.match(/^(["'])([\s\S]+)\1$/);
+      if (quoted?.[2] !== undefined) {
+        const escaped = quoted[2].replace(/"/g, "\\\"");
+        return `{% include "${escaped}" %}`;
+      }
+    }
+    return `{% include ${rawArg} %}`;
+  }
+
+  if (/^image$/i.test(content)) {
+    return "{% image %}";
+  }
+
+  if (/^endimage$/i.test(content)) {
+    return "{% endimage %}";
+  }
+
+  if (/^endrole$/i.test(content)) {
+    return "{% endrole %}";
+  }
+
+  return `{% ${content} %}`;
+}
+
+function normalizeSingleTagLine(line: string, normalizeIncludeQuotes: boolean): string {
+  const match = line.match(/^(\s*)({%[\s\S]*?%})\s*$/);
+  if (!match) {
+    return line;
+  }
+
+  const indent = match[1] ?? "";
+  const rawTag = match[2] ?? "";
+  const content = rawTag.slice(2, -2).trim();
+
+  return `${indent}${normalizeTagFromContent(content, normalizeIncludeQuotes)}`;
+}
+
+function normalizeSingleCommentLine(line: string): string {
+  const match = line.match(/^(\s*){#([\s\S]*?)#}\s*$/);
+  if (!match) {
+    return line;
+  }
+
+  const indent = match[1] ?? "";
+  const body = (match[2] ?? "").trim();
+
+  if (!body) {
+    return `${indent}{# #}`;
+  }
+
+  return `${indent}{# ${body} #}`;
+}
+
+function normalizeImageAttributeLine(line: string): string {
+  const match = line.match(/^(\s*)([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*?)\s*$/);
+  if (!match) {
+    return line;
+  }
+
+  const indent = match[1] ?? "";
+  const key = (match[2] ?? "").toLowerCase();
+  const value = match[3] ?? "";
+
+  return `${indent}${key}: ${value}`;
+}
+
+function isPureTagLine(line: string): boolean {
+  return /^\s*{%[\s\S]*?%}\s*$/.test(line);
+}
+
+function isPureCommentLine(line: string): boolean {
+  return /^\s*{#[\s\S]*?#}\s*$/.test(line);
+}
+
+function isControlLine(line: string): boolean {
+  return isPureTagLine(line) || isPureCommentLine(line);
+}
+
+function collapseControlBlankLines(lines: string[], maxConsecutiveBlankLines: number): string[] {
+  const maxBlank = Math.max(0, Math.floor(maxConsecutiveBlankLines));
+  const result: string[] = [];
+  let blankRun = 0;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (line.trim().length > 0) {
+      blankRun = 0;
+      result.push(line);
+      continue;
+    }
+
+    blankRun += 1;
+
+    let prevNonEmpty: string | undefined;
+    for (let i = result.length - 1; i >= 0; i -= 1) {
+      if ((result[i] ?? "").trim().length > 0) {
+        prevNonEmpty = result[i];
+        break;
+      }
+    }
+
+    let nextNonEmpty: string | undefined;
+    for (let i = index + 1; i < lines.length; i += 1) {
+      if ((lines[i] ?? "").trim().length > 0) {
+        nextNonEmpty = lines[i];
+        break;
+      }
+    }
+
+    const aroundControl = Boolean(prevNonEmpty && nextNonEmpty && isControlLine(prevNonEmpty) && isControlLine(nextNonEmpty));
+    if (aroundControl && blankRun > maxBlank) {
+      continue;
+    }
+
+    result.push("");
+  }
+
+  return result;
+}
+
+function hasTemplateErrorsForFormatting(text: string): boolean {
+  const stack: string[] = [];
+  const tagRegex = /{%[\s\S]*?%}/g;
+  const tags = text.match(tagRegex) ?? [];
+
+  const variableOpenRegex = /{{/g;
+  let variableMatch: RegExpExecArray | null;
+  while ((variableMatch = variableOpenRegex.exec(text)) !== null) {
+    if (text.indexOf("}}", variableMatch.index + 2) < 0) {
+      return true;
+    }
+  }
+
+  for (const rawTag of tags) {
+    const parsed = parseTagContent(rawTag);
+    const name = parsed.name;
+
+    if (!TAG_SET.has(name as TagName)) {
+      return true;
+    }
+
+    if (name === "role") {
+      if (!parsed.arg || !ALLOWED_ROLES.has(parsed.arg)) {
+        return true;
+      }
+      if (stack.includes("role")) {
+        return true;
+      }
+      stack.push("role");
+      continue;
+    }
+
+    if (name === "endrole") {
+      if (stack.at(-1) !== "role") {
+        return true;
+      }
+      stack.pop();
+      continue;
+    }
+
+    if (name === "if") {
+      if (!parsed.arg) {
+        return true;
+      }
+      stack.push("if");
+      continue;
+    }
+
+    if (name === "elseif") {
+      if (!parsed.arg || !stack.includes("if")) {
+        return true;
+      }
+      continue;
+    }
+
+    if (name === "else") {
+      if (!stack.includes("if")) {
+        return true;
+      }
+      continue;
+    }
+
+    if (name === "endif") {
+      if (stack.at(-1) !== "if") {
+        return true;
+      }
+      stack.pop();
+      continue;
+    }
+
+    if (name === "for") {
+      if (!parsed.arg || !/^([A-Za-z_][A-Za-z0-9_]*)\s+in\s+([\s\S]+)$/.test(parsed.arg)) {
+        return true;
+      }
+      stack.push("for");
+      continue;
+    }
+
+    if (name === "endfor") {
+      if (stack.at(-1) !== "for") {
+        return true;
+      }
+      stack.pop();
+      continue;
+    }
+
+    if (name === "include") {
+      if (!parsed.arg || !/^['"].+['"]$/.test(parsed.arg)) {
+        return true;
+      }
+      continue;
+    }
+
+    if (name === "image") {
+      stack.push("image");
+      continue;
+    }
+
+    if (name === "endimage") {
+      if (stack.at(-1) !== "image") {
+        return true;
+      }
+      stack.pop();
+    }
+  }
+
+  if (stack.length > 0) {
+    return true;
+  }
+
+  return false;
+}
+
+function formatGdPromptText(text: string, settings: FormatterSettings): string {
+  const normalizedInput = text.replace(/\r\n?/g, "\n");
+  const lines = normalizedInput.split("\n");
+  const hasTemplateErrors = hasTemplateErrorsForFormatting(normalizedInput);
+
+  const formatted = lines.map((line) => line.replace(/[ \t]+$/g, ""));
+  if (hasTemplateErrors) {
+    return `${formatted.join("\n").replace(/\n*$/g, "")}\n`;
+  }
+
+  let inImageBlock = false;
+  const transformed: string[] = [];
+
+  for (const originalLine of formatted) {
+    let line = originalLine;
+
+    if (isPureTagLine(line)) {
+      line = normalizeSingleTagLine(line, settings.normalizeIncludeQuotes);
+      const content = line.trim().slice(2, -2).trim();
+
+      if (/^image$/i.test(content)) {
+        inImageBlock = true;
+      } else if (/^endimage$/i.test(content)) {
+        inImageBlock = false;
+      }
+
+      transformed.push(line);
+      continue;
+    }
+
+    if (isPureCommentLine(line)) {
+      transformed.push(normalizeSingleCommentLine(line));
+      continue;
+    }
+
+    if (inImageBlock && line.trim().length > 0) {
+      transformed.push(normalizeImageAttributeLine(line));
+      continue;
+    }
+
+    transformed.push(line);
+  }
+
+  const compacted = collapseControlBlankLines(transformed, settings.maxConsecutiveBlankLines);
+  return `${compacted.join("\n").replace(/\n*$/g, "")}\n`;
+}
+
 function provideCompletions(): vscode.CompletionItem[] {
   const items: vscode.CompletionItem[] = [];
 
   const roleSnippet = new vscode.CompletionItem("role block", vscode.CompletionItemKind.Snippet);
-  roleSnippet.insertText = new vscode.SnippetString("{% role:${1|system,user,assistant|} %}\n$0\n{% endrole %}");
+  roleSnippet.insertText = new vscode.SnippetString("{% role:${1|system,user,assistant,tool,tool_result|} %}\n$0\n{% endrole %}");
   roleSnippet.documentation = "插入 role 块";
   items.push(roleSnippet);
 
@@ -421,8 +784,13 @@ function provideCompletions(): vscode.CompletionItem[] {
   ifSnippet.documentation = "插入 if/elseif/else/endif 块";
   items.push(ifSnippet);
 
+  const forSnippet = new vscode.CompletionItem("for block", vscode.CompletionItemKind.Snippet);
+  forSnippet.insertText = new vscode.SnippetString("{% for ${1:item} in ${2:items} %}\n$0\n{% endfor %}");
+  forSnippet.documentation = "插入 for/endfor 块";
+  items.push(forSnippet);
+
   const includeSnippet = new vscode.CompletionItem("include", vscode.CompletionItemKind.Snippet);
-  includeSnippet.insertText = new vscode.SnippetString('{% include "${1:./partials/prompt.gptpl}" %}');
+  includeSnippet.insertText = new vscode.SnippetString('{% include "${1:./partials/prompt.gdprompt}" %}');
   includeSnippet.documentation = "插入 include 标签";
   items.push(includeSnippet);
 
@@ -437,6 +805,15 @@ function provideCompletions(): vscode.CompletionItem[] {
   items.push(variableSnippet);
 
   return items;
+}
+
+function getFormatterSettings(document: vscode.TextDocument): FormatterSettings {
+  const config = vscode.workspace.getConfiguration("gdprompt", document.uri);
+  return {
+    enabled: config.get<boolean>("formatter.enabled", true),
+    normalizeIncludeQuotes: config.get<boolean>("formatter.normalizeIncludeQuotes", true),
+    maxConsecutiveBlankLines: config.get<number>("formatter.maxConsecutiveBlankLines", 1)
+  };
 }
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -546,6 +923,30 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   context.subscriptions.push(documentLinkProvider);
+
+  const formattingProvider = vscode.languages.registerDocumentFormattingEditProvider({ language: LANGUAGE_ID }, {
+    provideDocumentFormattingEdits(document) {
+      if (!isTemplateDocument(document)) {
+        return [];
+      }
+
+      const settings = getFormatterSettings(document);
+      if (!settings.enabled) {
+        return [];
+      }
+
+      const original = document.getText();
+      const formatted = formatGdPromptText(original, settings);
+      if (formatted === original) {
+        return [];
+      }
+
+      const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(original.length));
+      return [vscode.TextEdit.replace(fullRange, formatted)];
+    }
+  });
+
+  context.subscriptions.push(formattingProvider);
 
   const validateOnType = () => {
     const editor = vscode.window.activeTextEditor;

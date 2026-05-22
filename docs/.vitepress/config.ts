@@ -34,7 +34,10 @@ export default defineConfig({
       },
       {
         text: "工程实践",
-        items: [{ text: "测试与发布", link: "/guide/testing-and-release" }]
+        items: [
+          { text: "gdprompt Formatter 标准", link: "/guide/formatter" },
+          { text: "测试与发布", link: "/guide/testing-and-release" }
+        ]
       }
     ],
     socialLinks: [{ icon: "github", link: "https://github.com" }],

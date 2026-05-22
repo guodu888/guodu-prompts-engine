@@ -17,6 +17,25 @@ This extension adds first-party editing support for Guodu prompt templates. It i
 - Variables are highlighted with stronger scopes for the delimiters, variable name, and default value.
 - Snippet completions for role/if/include/image/variables.
 - Hover docs for core tags, including supported comparison and logical operators (`&&`, `||`, `()`).
+- Built-in formatter for `.gdprompt` with safe fallback mode on syntax errors.
+
+## Formatter
+
+The extension registers a document formatter for `.gdprompt`.
+
+- Command: `Format Document`
+- Key rules:
+  - normalize tag whitespace (`{% ... %}`)
+  - normalize control tags (`role/if/elseif/else/endif/for/endfor/include/image/endimage`)
+  - normalize image attributes to `key: value`
+  - trim trailing spaces, keep a single trailing newline
+  - if syntax is invalid, fallback to minimal formatting only
+
+Settings:
+
+- `gdprompt.formatter.enabled` (default: `true`)
+- `gdprompt.formatter.normalizeIncludeQuotes` (default: `true`)
+- `gdprompt.formatter.maxConsecutiveBlankLines` (default: `1`)
 
 ## Markdown Base
 

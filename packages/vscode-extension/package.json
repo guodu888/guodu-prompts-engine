@@ -2,7 +2,7 @@
   "name": "guodu-prompt-engine-vscode",
   "displayName": "Guodu Prompt Engine",
   "description": "Markdown-based language support for Guodu prompt templates (.gdprompt) with custom tags, diagnostics, hovers, and completions.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "guodu888",
   "license": "MIT",
   "engines": {
@@ -41,6 +41,22 @@
           "type": "boolean",
           "default": true,
           "description": "Validate .gdprompt files while typing."
+        },
+        "gdprompt.formatter.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable formatting support for .gdprompt files."
+        },
+        "gdprompt.formatter.normalizeIncludeQuotes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Normalize include paths to use double quotes."
+        },
+        "gdprompt.formatter.maxConsecutiveBlankLines": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0,
+          "description": "Maximum blank lines kept between control-tag lines."
         }
       }
     }
