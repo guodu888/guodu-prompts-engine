@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
-import { resolveTemplateString, resolveVariableValue } from "./variable-resolver";
+import {
+  resolveTemplateString,
+  resolveTemplateStringAsync,
+  resolveVariableValue,
+  resolveVariableValueAsync
+} from "./variable-resolver";
 
 test("resolves variable and default", () => {
   const output = resolveTemplateString("hello {{name|world}}", { name: "alice" });
@@ -32,4 +37,36 @@ test("throws for nested default", () => {
 test("resolveVariableValue throws when default contains nested template", () => {
   expect(() => resolveVariableValue("missing", {}, {}, "{{fallback}}"))
     .toThrow("Nested variable defaults are not supported.");
+});
+
+test("supports dot-path variable interpolation", () => {
+  const output = resolveTemplateString("hello {{user.name}}", {
+    user: { name: "alice" }
+  });
+  expect(output).toBe("hello alice");
+});
+
+test("dot-path uses default when missing", () => {
+  const output = resolveTemplateString("{{user.profile.name|visitor}}", {
+    user: { profile: null }
+  });
+  expect(output).toBe("visitor");
+});
+
+test("resolveVariableValue throws in sync mode when variable is Promise", () => {
+  expect(() => resolveVariableValue("name", { name: Promise.resolve("alice") })).toThrow(
+    "cannot be resolved in sync mode"
+  );
+});
+
+test("resolveVariableValueAsync resolves Promise values", async () => {
+  const value = await resolveVariableValueAsync("name", { name: Promise.resolve("alice") });
+  expect(value).toBe("alice");
+});
+
+test("resolveTemplateStringAsync resolves async values", async () => {
+  const output = await resolveTemplateStringAsync("hello {{user.name}}", {
+    user: Promise.resolve({ name: "bob" })
+  });
+  expect(output).toBe("hello bob");
 });

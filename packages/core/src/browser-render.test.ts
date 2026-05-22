@@ -48,3 +48,20 @@ test("throws without includeResolver when include exists", () => {
     "Include is not supported in string rendering mode"
   );
 });
+
+test("supports for loops in string rendering", () => {
+  const messages = renderTemplateString(
+    `{% role:user %}{% for item in items %}{{item}} {% endfor %}{% endrole %}`,
+    { items: ["a", "b"] }
+  );
+
+  expect(messages).toEqual([{ role: "user", content: "a b " }]);
+});
+
+test("throws in sync mode when variable is Promise", () => {
+  expect(() =>
+    renderTemplateString(`{% role:user %}{{name}}{% endrole %}`, {
+      name: Promise.resolve("async")
+    })
+  ).toThrow("cannot be resolved in sync mode");
+});

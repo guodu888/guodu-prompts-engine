@@ -4,11 +4,15 @@
 
 ## 特性
 
-- ✅ **变量插值** - 支持 `{{variable}}` 和 `{{variable|defaultValue}}` 语法
+- ✅ **变量插值** - 支持 `{{variable}}`、`{{variable|defaultValue}}` 与点语法 `{{user.name}}`
 - ✅ **文件包含** - 使用 `{% include "./file.md" %}` 引入其他模板文件
-- ✅ **条件渲染** - 支持 `{% if %}`, `{% elseif %}`, `{% endif %}` 条件判断，支持 `&&`、`||`、`()` 逻辑组合
-- ✅ **多角色消息** - 支持 `system`, `user`, `assistant` 三种角色
+- ✅ **条件渲染** - 支持 `!`、`in`、`&&`、`||`、`()` 逻辑组合
+- ✅ **循环渲染** - 支持 `{% for item in items %}...{% endfor %}`
+- ✅ **多角色消息** - 支持 `system`, `user`, `assistant`, `tool`, `tool_result`
 - ✅ **多模态内容** - 支持文本和图片混合内容
+- ✅ **异步变量解析** - 变量可来自 `Promise` 或 async resolver
+- ✅ **模板校验 API** - 仅校验语法与结构，不执行渲染
+- ✅ **CLI** - 提供 `render` / `validate` 用于本地调试与 CI
 - ✅ **智能缓存** - 基于文件 mtime 的自动缓存机制，文件更新时自动失效
 - ✅ **类型安全** - 完整的 TypeScript 类型定义
 
@@ -22,11 +26,12 @@ bun add guodu-prompt-engine-ai-sdk
 
 ## Monorepo 架构
 
-项目现在采用 Bun workspace monorepo，拆分为三个包：
+项目现在采用 Bun workspace monorepo，拆分为四个包：
 
 - `guodu-prompt-engine-core`：模板引擎核心能力与消息类型定义
 - `guodu-prompt-engine-langchain`：将 core 输出转换为 LangChain 可用消息格式
 - `guodu-prompt-engine-ai-sdk`：将 core 输出转换为 AI SDK 可用消息格式
+- `gdprompt-cli`：命令行渲染与校验工具
 
 目录结构：
 
@@ -35,6 +40,7 @@ packages/
   core/
   langchain/
   ai-sdk/
+  cli/
 ```
 
 依赖方向：
@@ -127,10 +133,32 @@ console.log(messages);
 {% endif %}
 ```
 
-比较操作符：`==`、`!=`、`>`、`<`、`>=`、`<=`  
-逻辑操作符：`&&`（与）、`||`（或）、`()`（括号分组，`&&` 优先级高于 `||`）
+比较操作符：`==`、`!=`、`>`、`<`、`>=`、`<=`、`in`  
+逻辑操作符：`!`（非）、`&&`（与）、`||`（或）、`()`（括号分组，`&&` 优先级高于 `||`）
 
-### 5. 图片内容
+### 5. 循环渲染
+
+```markdown
+{% role:user %}
+{% for item in items %}
+- {{item.name}}
+{% endfor %}
+{% endrole %}
+```
+
+### 6. 异步变量
+
+```ts
+const engine = new TemplateEngine({
+  baseDir: "./prompts",
+  variableResolver: async (variablePath) => {
+    if (variablePath === "profile.name") return "Alice";
+    return undefined;
+  }
+});
+```
+
+### 7. 图片内容
 
 使用 `{% image %}` 标签添加图片：
 
@@ -188,6 +216,25 @@ const messages = await engine.render('demo01.md', {
   course: '英语',
   level: '初级',
 });
+```
+
+##### validateTemplate
+
+```ts
+import { validateTemplate } from 'guodu-prompt-engine-core';
+
+const result = await validateTemplate('demo01.md', {
+  baseDir: './prompts'
+});
+```
+
+仅做语法与结构校验，不执行渲染。
+
+## CLI
+
+```bash
+gdprompt render <templatePath> [--base-dir <dir>] [--vars <json|file>]
+gdprompt validate <templatePath> [--base-dir <dir>]
 ```
 
 ### 缓存

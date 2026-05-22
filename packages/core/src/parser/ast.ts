@@ -26,13 +26,20 @@ export interface IfNode {
   branches: IfBranchNode[];
 }
 
+export interface ForNode {
+  type: "for";
+  itemName: string;
+  iterableExpression: string;
+  children: TemplateNode[];
+}
+
 export interface ImageNode {
   type: "image";
   urlExpression: string;
   detailExpression?: string;
 }
 
-export type TemplateNode = TextNode | RoleNode | IncludeNode | IfNode | ImageNode;
+export type TemplateNode = TextNode | RoleNode | IncludeNode | IfNode | ForNode | ImageNode;
 
 export interface ParsedImageAttributes {
   urlExpression: string;

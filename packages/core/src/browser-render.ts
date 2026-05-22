@@ -1,6 +1,6 @@
 import { parseTemplate } from "./parser";
 import { evaluateCondition } from "./renderer/condition-evaluator";
-import { resolveTemplateString } from "./renderer/variable-resolver";
+import { resolveTemplateString, resolveVariableRawValue } from "./renderer/variable-resolver";
 import type { ImageContent, Message, MessageContent, TemplateVariables } from "./types";
 
 type RenderTextPart = {
@@ -15,6 +15,7 @@ type RenderRolePart = RenderTextPart | RenderImagePart;
 export interface StringTemplateRenderOptions {
   strictUndefinedVariables?: boolean;
   includeResolver?: (includePath: string) => string;
+  variableResolver?: (variablePath: string, variables: TemplateVariables) => unknown | Promise<unknown>;
 }
 
 function trimRoleBoundaryStart(text: string): string {
@@ -126,7 +127,8 @@ export function renderTemplateString(
 
   const normalizeText = (text: string): string =>
     resolveTemplateString(text, variables, {
-      strictUndefined
+      strictUndefined,
+      variableResolver: options.variableResolver
     });
 
   const parseFromInclude = (includePath: string, stack: Set<string>) => {
@@ -202,6 +204,50 @@ export function renderTemplateString(
         continue;
       }
 
+      if (node.type === "for") {
+        const iterable = resolveVariableRawValue(node.iterableExpression, variables, {
+          variableResolver: options.variableResolver
+        });
+
+        const values = (() => {
+          if (iterable === undefined || iterable === null) {
+            if (strictUndefined) {
+              throw new Error(`Missing iterable variable: ${node.iterableExpression}`);
+            }
+            return [] as unknown[];
+          }
+
+          if (Array.isArray(iterable)) {
+            return iterable;
+          }
+
+          if (typeof iterable === "object") {
+            return Object.values(iterable as Record<string, unknown>);
+          }
+
+          throw new Error(`For loop iterable must be an array or object: ${node.iterableExpression}`);
+        })();
+
+        for (const value of values) {
+          const previousValue = variables[node.itemName];
+          const hadPrevious = Object.prototype.hasOwnProperty.call(variables, node.itemName);
+          variables[node.itemName] = value;
+          try {
+            const nested = renderRoleChildren(node.children, stack);
+            flushTextBuffer();
+            parts.push(...nested);
+          } finally {
+            if (hadPrevious) {
+              variables[node.itemName] = previousValue;
+            } else {
+              delete variables[node.itemName];
+            }
+          }
+        }
+
+        continue;
+      }
+
       if (node.type === "include") {
         const includeNodes = parseFromInclude(node.path, stack);
         const nested = renderRoleChildren(includeNodes, stack);
@@ -252,6 +298,49 @@ export function renderTemplateString(
           const branchMessages = renderTopLevelNodes(branch.children, stack);
           messages.push(...branchMessages);
         }
+        continue;
+      }
+
+      if (node.type === "for") {
+        const iterable = resolveVariableRawValue(node.iterableExpression, variables, {
+          variableResolver: options.variableResolver
+        });
+
+        const values = (() => {
+          if (iterable === undefined || iterable === null) {
+            if (strictUndefined) {
+              throw new Error(`Missing iterable variable: ${node.iterableExpression}`);
+            }
+            return [] as unknown[];
+          }
+
+          if (Array.isArray(iterable)) {
+            return iterable;
+          }
+
+          if (typeof iterable === "object") {
+            return Object.values(iterable as Record<string, unknown>);
+          }
+
+          throw new Error(`For loop iterable must be an array or object: ${node.iterableExpression}`);
+        })();
+
+        for (const value of values) {
+          const previousValue = variables[node.itemName];
+          const hadPrevious = Object.prototype.hasOwnProperty.call(variables, node.itemName);
+          variables[node.itemName] = value;
+          try {
+            const nestedMessages = renderTopLevelNodes(node.children, stack);
+            messages.push(...nestedMessages);
+          } finally {
+            if (hadPrevious) {
+              variables[node.itemName] = previousValue;
+            } else {
+              delete variables[node.itemName];
+            }
+          }
+        }
+
         continue;
       }
 

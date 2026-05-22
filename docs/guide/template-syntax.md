@@ -5,7 +5,10 @@
 ```md
 你是一名{{course}}老师
 你是一名{{course|初中数学}}老师
+模型为：{{config.model}}
 ```
+
+支持点语法访问嵌套对象：<code v-pre>{{user.name}}</code>、<code v-pre>{{config.model}}</code>。
 
 ## 角色块
 
@@ -19,7 +22,19 @@
 {% endrole %}
 ```
 
-支持角色：`system`、`user`、`assistant`。
+支持角色：`system`、`user`、`assistant`、`tool`、`tool_result`。
+
+## for 循环
+
+```md
+{% role:user %}
+{% for item in items %}
+- {{item.name}}
+{% endfor %}
+{% endrole %}
+```
+
+`for ... in ...` 支持数组与对象（对象按 value 迭代）。
 
 ## 条件渲染
 
@@ -33,12 +48,13 @@
 {% endif %}
 ```
 
-支持比较操作符：`==`、`!=`、`>`、`<`、`>=`、`<=`。
+支持比较操作符：`==`、`!=`、`>`、`<`、`>=`、`<=`、`in`。
 
 支持逻辑操作符与括号分组：
 
 | 操作符 | 含义 | 优先级 |
 |--------|------|--------|
+| `!`    | 非（NOT） | 最高（单目） |
 | `&&`   | 与（AND） | 高 |
 | `\|\|`   | 或（OR）  | 低 |
 | `()`   | 分组括号  | 最高 |
@@ -62,9 +78,33 @@
 {% else %}
 ...其他情况...
 {% endif %}
+
+{# ! 与 in #}
+{% if !(user.level == "beginner") && "name" in user %}
+...允许进入...
+{% endif %}
 ```
 
 > `&&` 优先级高于 `||`，括号可以显式改变求值顺序。
+
+## 注释
+
+```md
+{# 这是注释，不会输出 #}
+```
+
+支持多行注释：
+
+```md
+{#
+	这是多行注释
+	不会进入渲染结果
+#}
+```
+
+## 异步变量
+
+`TemplateEngine.render` 支持 Promise 变量值与 async resolver。`renderTemplateString` 是同步 API，不支持 Promise 变量。
 
 ## 文件包含
 

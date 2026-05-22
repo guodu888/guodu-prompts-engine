@@ -1,0 +1,23 @@
+{
+  "name": "gdprompt-cli",
+  "version": "0.1.2",
+  "type": "module",
+  "bin": {
+    "gdprompt": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git"
+  },
+  "dependencies": {
+    "guodu-prompt-engine-core": "^0.1.2"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
+  }
+}

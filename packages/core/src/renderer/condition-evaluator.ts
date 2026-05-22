@@ -1,97 +1,154 @@
 import type { TemplateVariables } from "../types";
-import { resolveVariableValue } from "./variable-resolver";
+import {
+  resolveVariableRawValue,
+  resolveVariableRawValueAsync
+} from "./variable-resolver";
 
-type ConditionValue = string | number | boolean;
+interface EvaluatorOptions {
+  variableResolver?: (variablePath: string, variables: TemplateVariables) => unknown | Promise<unknown>;
+}
 
-function parseLiteral(raw: string, variables: TemplateVariables): ConditionValue {
+function isVariablePath(value: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(value);
+}
+
+function toBoolean(value: unknown): boolean {
+  return Boolean(value);
+}
+
+function parseLiteral(raw: string, variables: TemplateVariables, options: EvaluatorOptions = {}): unknown {
   const value = raw.trim();
 
-  const quoted = value.match(/^['\"]([\s\S]*)['\"]$/);
-  if (quoted?.[1] !== undefined) {
-    return quoted[1];
-  }
+  const quoted = value.match(/^['"]([\s\S]*)['"]$/);
+  if (quoted?.[1] !== undefined) return quoted[1];
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (value === "null") return null;
+  if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
 
-  if (value === "true") {
-    return true;
-  }
-
-  if (value === "false") {
-    return false;
-  }
-
-  if (/^-?\d+(\.\d+)?$/.test(value)) {
-    return Number(value);
-  }
-
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) {
+  if (!isVariablePath(value)) {
     throw new Error(`Unsupported condition operand: ${value}`);
   }
 
-  const rawVariableValue = variables[value];
-  if (typeof rawVariableValue === "number" || typeof rawVariableValue === "boolean") {
-    return rawVariableValue;
-  }
-
-  return resolveVariableValue(value, variables);
+  return resolveVariableRawValue(value, variables, {
+    variableResolver: options.variableResolver
+  });
 }
 
-function evaluateSimpleComparison(expr: string, variables: TemplateVariables): boolean {
-  const match = expr.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*(==|!=|>=|<=|>|<)\s*([\s\S]+)$/);
+async function parseLiteralAsync(
+  raw: string,
+  variables: TemplateVariables,
+  options: EvaluatorOptions = {}
+): Promise<unknown> {
+  const value = raw.trim();
+
+  const quoted = value.match(/^['"]([\s\S]*)['"]$/);
+  if (quoted?.[1] !== undefined) return quoted[1];
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (value === "null") return null;
+  if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
+
+  if (!isVariablePath(value)) {
+    throw new Error(`Unsupported condition operand: ${value}`);
+  }
+
+  return resolveVariableRawValueAsync(value, variables, {
+    variableResolver: options.variableResolver
+  });
+}
+
+function evaluateSimpleComparison(
+  expr: string,
+  variables: TemplateVariables,
+  options: EvaluatorOptions = {}
+): boolean {
+  const inMatch = expr.match(/^([\s\S]+?)\s+in\s+([\s\S]+)$/);
+  if (inMatch) {
+    const leftValue = parseLiteral(inMatch[1] ?? "", variables, options);
+    const rightValue = parseLiteral(inMatch[2] ?? "", variables, options);
+
+    if (Array.isArray(rightValue)) return rightValue.some((item) => item === leftValue);
+    if (typeof rightValue === "string") return rightValue.includes(String(leftValue ?? ""));
+    if (rightValue && typeof rightValue === "object") return String(leftValue) in rightValue;
+
+    throw new Error("Operator in requires an array, string, or object operand on the right side.");
+  }
+
+  const match = expr.match(/^([\s\S]+?)\s*(==|!=|>=|<=|>|<)\s*([\s\S]+)$/);
   if (!match) {
-    throw new Error(`Unsupported condition expression: ${expr}`);
+    return toBoolean(parseLiteral(expr, variables, options));
   }
 
-  const leftValue = parseLiteral(match[1] ?? "", variables);
-  const rightValue = parseLiteral(match[3] ?? "", variables);
+  const leftValue = parseLiteral(match[1] ?? "", variables, options);
+  const rightValue = parseLiteral(match[3] ?? "", variables, options);
 
-  if (match[2] === "==") {
-    return String(leftValue) === String(rightValue);
-  }
-
-  if (match[2] === "!=") {
-    return String(leftValue) !== String(rightValue);
-  }
+  if (match[2] === "==") return String(leftValue) === String(rightValue);
+  if (match[2] === "!=") return String(leftValue) !== String(rightValue);
 
   if (typeof leftValue !== "number" || typeof rightValue !== "number") {
     throw new Error(`Operator ${match[2]} requires numeric operands.`);
   }
 
-  if (match[2] === ">") {
-    return leftValue > rightValue;
-  }
-
-  if (match[2] === "<") {
-    return leftValue < rightValue;
-  }
-
-  if (match[2] === ">=") {
-    return leftValue >= rightValue;
-  }
-
+  if (match[2] === ">") return leftValue > rightValue;
+  if (match[2] === "<") return leftValue < rightValue;
+  if (match[2] === ">=") return leftValue >= rightValue;
   return leftValue <= rightValue;
 }
 
-// Token types for the condition expression tokenizer
+async function evaluateSimpleComparisonAsync(
+  expr: string,
+  variables: TemplateVariables,
+  options: EvaluatorOptions = {}
+): Promise<boolean> {
+  const inMatch = expr.match(/^([\s\S]+?)\s+in\s+([\s\S]+)$/);
+  if (inMatch) {
+    const leftValue = await parseLiteralAsync(inMatch[1] ?? "", variables, options);
+    const rightValue = await parseLiteralAsync(inMatch[2] ?? "", variables, options);
+
+    if (Array.isArray(rightValue)) return rightValue.some((item) => item === leftValue);
+    if (typeof rightValue === "string") return rightValue.includes(String(leftValue ?? ""));
+    if (rightValue && typeof rightValue === "object") return String(leftValue) in rightValue;
+
+    throw new Error("Operator in requires an array, string, or object operand on the right side.");
+  }
+
+  const match = expr.match(/^([\s\S]+?)\s*(==|!=|>=|<=|>|<)\s*([\s\S]+)$/);
+  if (!match) {
+    return toBoolean(await parseLiteralAsync(expr, variables, options));
+  }
+
+  const leftValue = await parseLiteralAsync(match[1] ?? "", variables, options);
+  const rightValue = await parseLiteralAsync(match[3] ?? "", variables, options);
+
+  if (match[2] === "==") return String(leftValue) === String(rightValue);
+  if (match[2] === "!=") return String(leftValue) !== String(rightValue);
+
+  if (typeof leftValue !== "number" || typeof rightValue !== "number") {
+    throw new Error(`Operator ${match[2]} requires numeric operands.`);
+  }
+
+  if (match[2] === ">") return leftValue > rightValue;
+  if (match[2] === "<") return leftValue < rightValue;
+  if (match[2] === ">=") return leftValue >= rightValue;
+  return leftValue <= rightValue;
+}
+
 type Token =
   | { type: "AND" }
   | { type: "OR" }
+  | { type: "NOT" }
   | { type: "LPAREN" }
   | { type: "RPAREN" }
   | { type: "EXPR"; value: string };
 
-/**
- * Tokenizes a condition string into AND, OR, parenthesis, and expression tokens.
- * Quoted string literals inside expressions are handled correctly and their
- * contents are never mistaken for operators.
- */
 function tokenize(condition: string): Token[] {
   const tokens: Token[] = [];
   let i = 0;
 
   while (i < condition.length) {
-    // Skip whitespace
     if (/\s/.test(condition[i]!)) {
-      i++;
+      i += 1;
       continue;
     }
 
@@ -109,39 +166,46 @@ function tokenize(condition: string): Token[] {
 
     if (condition[i] === "(") {
       tokens.push({ type: "LPAREN" });
-      i++;
+      i += 1;
       continue;
     }
 
     if (condition[i] === ")") {
       tokens.push({ type: "RPAREN" });
-      i++;
+      i += 1;
       continue;
     }
 
-    // Accumulate characters into an expression token, respecting quoted strings
+    if (condition[i] === "!" && condition[i + 1] !== "=") {
+      tokens.push({ type: "NOT" });
+      i += 1;
+      continue;
+    }
+
     const start = i;
     while (i < condition.length) {
       const ch = condition[i]!;
       if (
         ch === "(" ||
         ch === ")" ||
+        (ch === "!" && condition[i + 1] !== "=") ||
         (ch === "&" && condition[i + 1] === "&") ||
         (ch === "|" && condition[i + 1] === "|")
       ) {
         break;
       }
-      // Skip over quoted string literals so their contents aren't misinterpreted
+
       if (ch === '"' || ch === "'") {
         const quote = ch;
-        i++;
+        i += 1;
         while (i < condition.length && condition[i] !== quote) {
-          i++;
+          i += 1;
         }
-        i++; // consume closing quote
+        i += 1;
         continue;
       }
-      i++;
+
+      i += 1;
     }
 
     const expr = condition.slice(start, i).trim();
@@ -153,23 +217,16 @@ function tokenize(condition: string): Token[] {
   return tokens;
 }
 
-/**
- * Recursive descent parser for boolean condition expressions.
- *
- * Grammar:
- *   expression := or_expr
- *   or_expr    := and_expr ('||' and_expr)*
- *   and_expr   := atom    ('&&' atom)*
- *   atom       := '(' expression ')' | EXPR
- */
 class ConditionParser {
   private readonly tokens: Token[];
   private pos = 0;
   private readonly variables: TemplateVariables;
+  private readonly options: EvaluatorOptions;
 
-  constructor(tokens: Token[], variables: TemplateVariables) {
+  constructor(tokens: Token[], variables: TemplateVariables, options: EvaluatorOptions = {}) {
     this.tokens = tokens;
     this.variables = variables;
+    this.options = options;
   }
 
   parse(): boolean {
@@ -203,13 +260,21 @@ class ConditionParser {
   }
 
   private parseAnd(): boolean {
-    let result = this.parseAtom();
+    let result = this.parseNot();
     while (this.peek()?.type === "AND") {
       this.consume();
-      const right = this.parseAtom();
+      const right = this.parseNot();
       result = result && right;
     }
     return result;
+  }
+
+  private parseNot(): boolean {
+    if (this.peek()?.type === "NOT") {
+      this.consume();
+      return !this.parseNot();
+    }
+    return this.parseAtom();
   }
 
   private parseAtom(): boolean {
@@ -219,7 +284,7 @@ class ConditionParser {
     }
 
     if (token.type === "LPAREN") {
-      this.consume(); // consume '('
+      this.consume();
       const result = this.parseOr();
       const closing = this.consume();
       if (closing.type !== "RPAREN") {
@@ -230,7 +295,92 @@ class ConditionParser {
 
     if (token.type === "EXPR") {
       this.consume();
-      return evaluateSimpleComparison(token.value, this.variables);
+      return evaluateSimpleComparison(token.value, this.variables, this.options);
+    }
+
+    throw new Error(`Unexpected token type: ${token.type}`);
+  }
+}
+
+class AsyncConditionParser {
+  private readonly tokens: Token[];
+  private pos = 0;
+  private readonly variables: TemplateVariables;
+  private readonly options: EvaluatorOptions;
+
+  constructor(tokens: Token[], variables: TemplateVariables, options: EvaluatorOptions = {}) {
+    this.tokens = tokens;
+    this.variables = variables;
+    this.options = options;
+  }
+
+  async parse(): Promise<boolean> {
+    const result = await this.parseOr();
+    if (this.pos < this.tokens.length) {
+      throw new Error(`Unexpected token in condition at position ${this.pos}`);
+    }
+    return result;
+  }
+
+  private peek(): Token | undefined {
+    return this.tokens[this.pos];
+  }
+
+  private consume(): Token {
+    const token = this.tokens[this.pos++];
+    if (!token) {
+      throw new Error("Unexpected end of condition expression");
+    }
+    return token;
+  }
+
+  private async parseOr(): Promise<boolean> {
+    let result = await this.parseAnd();
+    while (this.peek()?.type === "OR") {
+      this.consume();
+      const right = await this.parseAnd();
+      result = result || right;
+    }
+    return result;
+  }
+
+  private async parseAnd(): Promise<boolean> {
+    let result = await this.parseNot();
+    while (this.peek()?.type === "AND") {
+      this.consume();
+      const right = await this.parseNot();
+      result = result && right;
+    }
+    return result;
+  }
+
+  private async parseNot(): Promise<boolean> {
+    if (this.peek()?.type === "NOT") {
+      this.consume();
+      return !(await this.parseNot());
+    }
+    return this.parseAtom();
+  }
+
+  private async parseAtom(): Promise<boolean> {
+    const token = this.peek();
+    if (!token) {
+      throw new Error("Unexpected end of condition expression");
+    }
+
+    if (token.type === "LPAREN") {
+      this.consume();
+      const result = await this.parseOr();
+      const closing = this.consume();
+      if (closing.type !== "RPAREN") {
+        throw new Error("Expected closing parenthesis ')'");
+      }
+      return result;
+    }
+
+    if (token.type === "EXPR") {
+      this.consume();
+      return evaluateSimpleComparisonAsync(token.value, this.variables, this.options);
     }
 
     throw new Error(`Unexpected token type: ${token.type}`);
@@ -240,5 +390,15 @@ class ConditionParser {
 export function evaluateCondition(condition: string, variables: TemplateVariables): boolean {
   const tokens = tokenize(condition);
   const parser = new ConditionParser(tokens, variables);
+  return parser.parse();
+}
+
+export async function evaluateConditionAsync(
+  condition: string,
+  variables: TemplateVariables,
+  options: EvaluatorOptions = {}
+): Promise<boolean> {
+  const tokens = tokenize(condition);
+  const parser = new AsyncConditionParser(tokens, variables, options);
   return parser.parse();
 }

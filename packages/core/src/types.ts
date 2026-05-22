@@ -1,4 +1,4 @@
-export type MessageRole = "system" | "user" | "assistant";
+export type MessageRole = "system" | "user" | "assistant" | "tool" | "tool_result";
 
 export type ImageDetail = "low" | "high" | "auto";
 
@@ -15,7 +15,15 @@ export interface TextContent {
   text: string;
 }
 
-export type MessageContent = string | Array<TextContent | ImageContent>;
+export interface ToolResultContent {
+  type: "tool_result";
+  tool_call_id: string;
+  tool_name?: string;
+  output: unknown;
+  is_error?: boolean;
+}
+
+export type MessageContent = string | Array<TextContent | ImageContent | ToolResultContent>;
 
 export interface Message {
   role: MessageRole;
@@ -29,10 +37,18 @@ export interface Cache<T = unknown> {
   clear(): void;
 }
 
+export type TemplateVariableValue = unknown | Promise<unknown>;
+
+export type TemplateVariableResolver = (
+  variablePath: string,
+  variables: TemplateVariables
+) => unknown | Promise<unknown>;
+
 export interface TemplateEngineOptions {
   baseDir: string;
   cache?: Cache;
   strictUndefinedVariables?: boolean;
+  variableResolver?: TemplateVariableResolver;
 }
 
-export type TemplateVariables = Record<string, unknown>;
+export type TemplateVariables = Record<string, TemplateVariableValue>;

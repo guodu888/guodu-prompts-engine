@@ -12,6 +12,9 @@
     },
     {
       "path": "./packages/vscode-extension"
+    },
+    {
+      "path": "./packages/cli"
     }
   ]
 }

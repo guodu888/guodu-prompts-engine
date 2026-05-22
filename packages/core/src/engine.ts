@@ -1,7 +1,7 @@
 import path from "node:path";
 import { parseTemplate } from "./parser";
-import { evaluateCondition } from "./renderer/condition-evaluator";
-import { resolveTemplateString } from "./renderer/variable-resolver";
+import { evaluateConditionAsync } from "./renderer/condition-evaluator";
+import { resolveTemplateStringAsync, resolveVariableRawValueAsync } from "./renderer/variable-resolver";
 import type { ImageContent, Message, MessageContent, TemplateEngineOptions, TemplateVariables } from "./types";
 import { resolveTemplatePath } from "./utils/path-resolver";
 
@@ -78,9 +78,10 @@ export class TemplateEngine {
     return content;
   }
 
-  private normalizeText(text: string): string {
-    return resolveTemplateString(text, this.currentVariables, {
-      strictUndefined: this.strictUndefined
+  private async normalizeText(text: string): Promise<string> {
+    return resolveTemplateStringAsync(text, this.currentVariables, {
+      strictUndefined: this.strictUndefined,
+      variableResolver: this.options.variableResolver
     });
   }
 
@@ -91,12 +92,12 @@ export class TemplateEngine {
     return parseTemplate(content);
   }
 
-  private resolveImageDetail(rawDetail: string | undefined): "low" | "high" | "auto" {
+  private async resolveImageDetail(rawDetail: string | undefined): Promise<"low" | "high" | "auto"> {
     if (!rawDetail) {
       return "auto";
     }
 
-    const resolved = this.normalizeText(rawDetail).trim().toLowerCase();
+    const resolved = (await this.normalizeText(rawDetail)).trim().toLowerCase();
     if (resolved === "low" || resolved === "high" || resolved === "auto") {
       return resolved;
     }
@@ -121,13 +122,13 @@ export class TemplateEngine {
 
     for (const node of nodes) {
       if (node.type === "text") {
-        textBuffer += this.normalizeText(node.value);
+        textBuffer += await this.normalizeText(node.value);
         continue;
       }
 
       if (node.type === "image") {
         flushTextBuffer();
-        const url = this.normalizeText(node.urlExpression).trim();
+        const url = (await this.normalizeText(node.urlExpression)).trim();
         if (!url) {
           throw new Error("Image url cannot be empty.");
         }
@@ -136,17 +137,28 @@ export class TemplateEngine {
           type: "image_url",
           image_url: {
             url,
-            detail: this.resolveImageDetail(node.detailExpression)
+            detail: await this.resolveImageDetail(node.detailExpression)
           }
         });
         continue;
       }
 
       if (node.type === "if") {
-        const branch = node.branches.find((item) => {
-          if (item.condition === null) return true;
-          return evaluateCondition(item.condition, this.currentVariables);
-        });
+        let branch = node.branches.find((item) => item.condition === null);
+        for (const candidate of node.branches) {
+          if (candidate.condition === null) {
+            continue;
+          }
+
+          if (
+            await evaluateConditionAsync(candidate.condition, this.currentVariables, {
+              variableResolver: this.options.variableResolver
+            })
+          ) {
+            branch = candidate;
+            break;
+          }
+        }
 
         if (branch) {
           const nested = await this.renderRoleChildren(branch.children, currentDir, stack);
@@ -157,6 +169,49 @@ export class TemplateEngine {
           flushTextBuffer();
           parts.push(...nested);
         }
+        continue;
+      }
+
+      if (node.type === "for") {
+        const iterable = await resolveVariableRawValueAsync(node.iterableExpression, this.currentVariables, {
+          variableResolver: this.options.variableResolver
+        });
+
+        const values = (() => {
+          if (iterable === undefined || iterable === null) {
+            if (this.strictUndefined) {
+              throw new Error(`Missing iterable variable: ${node.iterableExpression}`);
+            }
+            return [] as unknown[];
+          }
+
+          if (Array.isArray(iterable)) {
+            return iterable;
+          }
+
+          if (typeof iterable === "object") {
+            return Object.values(iterable as Record<string, unknown>);
+          }
+
+          throw new Error(`For loop iterable must be an array or object: ${node.iterableExpression}`);
+        })();
+
+        for (const value of values) {
+          const previousVariables = this.currentVariables;
+          this.currentVariables = {
+            ...previousVariables,
+            [node.itemName]: value
+          };
+
+          try {
+            const nested = await this.renderRoleChildren(node.children, currentDir, stack);
+            flushTextBuffer();
+            parts.push(...nested);
+          } finally {
+            this.currentVariables = previousVariables;
+          }
+        }
+
         continue;
       }
 
@@ -260,7 +315,7 @@ export class TemplateEngine {
 
     for (const node of nodes) {
       if (node.type === "text") {
-        if (this.normalizeText(node.value).trim().length > 0) {
+        if ((await this.normalizeText(node.value)).trim().length > 0) {
           throw new Error("Top-level content must be wrapped in role blocks.");
         }
         continue;
@@ -276,15 +331,68 @@ export class TemplateEngine {
       }
 
       if (node.type === "if") {
-        const branch = node.branches.find((item) => {
-          if (item.condition === null) return true;
-          return evaluateCondition(item.condition, this.currentVariables);
-        });
+        let branch = node.branches.find((item) => item.condition === null);
+        for (const candidate of node.branches) {
+          if (candidate.condition === null) {
+            continue;
+          }
+
+          if (
+            await evaluateConditionAsync(candidate.condition, this.currentVariables, {
+              variableResolver: this.options.variableResolver
+            })
+          ) {
+            branch = candidate;
+            break;
+          }
+        }
 
         if (branch) {
           const branchMessages = await this.renderTopLevelNodes(branch.children, currentDir, stack);
           messages.push(...branchMessages);
         }
+        continue;
+      }
+
+      if (node.type === "for") {
+        const iterable = await resolveVariableRawValueAsync(node.iterableExpression, this.currentVariables, {
+          variableResolver: this.options.variableResolver
+        });
+
+        const values = (() => {
+          if (iterable === undefined || iterable === null) {
+            if (this.strictUndefined) {
+              throw new Error(`Missing iterable variable: ${node.iterableExpression}`);
+            }
+            return [] as unknown[];
+          }
+
+          if (Array.isArray(iterable)) {
+            return iterable;
+          }
+
+          if (typeof iterable === "object") {
+            return Object.values(iterable as Record<string, unknown>);
+          }
+
+          throw new Error(`For loop iterable must be an array or object: ${node.iterableExpression}`);
+        })();
+
+        for (const value of values) {
+          const previousVariables = this.currentVariables;
+          this.currentVariables = {
+            ...previousVariables,
+            [node.itemName]: value
+          };
+
+          try {
+            const nestedMessages = await this.renderTopLevelNodes(node.children, currentDir, stack);
+            messages.push(...nestedMessages);
+          } finally {
+            this.currentVariables = previousVariables;
+          }
+        }
+
         continue;
       }
 

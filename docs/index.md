@@ -10,8 +10,11 @@
 
 - 用模板生成结构化 `messages`
 - 复用 prompt 片段（`include`）
-- 按变量分支渲染（`if/elseif/else`）
+- 按变量分支渲染（`if/elseif/else`，支持 `!` / `in`）
+- 使用 `for ... in ...` 循环渲染
+- 使用点语法访问嵌套变量（如 `user.name`）
 - 支持文本 + 图片的多模态消息
+- 支持 Promise / async resolver 异步变量
 - 一键转换到 LangChain / AI SDK 消息结构
 
 ## Monorepo 结构

@@ -9,6 +9,13 @@ export function mapLangChainContent(content: MessageContent): LangChainMessageCo
       return { type: "text", text: part.text };
     }
 
+    if (part.type === "tool_result") {
+      return {
+        type: "text",
+        text: typeof part.output === "string" ? part.output : JSON.stringify(part.output)
+      };
+    }
+
     return {
       type: "image_url",
       image_url: { url: part.image_url.url }

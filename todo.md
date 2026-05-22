@@ -2,14 +2,14 @@
 
 ## P0（高优先级）
 
-- [ ] 支持 `{% for %}` 循环语法（含 `for ... in ...` 与 `endfor`）
-- [ ] 支持点语法变量访问（如 `{{user.name}}`、`{{config.model}}`）
-- [ ] 条件表达式支持取反 `!` 与 `in` 操作符
-- [ ] 增加异步变量解析能力（变量可来自 `Promise` / async resolver）
-- [ ] 增加模板验证 API（仅校验语法与结构，不执行渲染）
-- [ ] 支持 `tool` / `tool_result` 等工具调用相关消息角色
-- [ ] 为 `langchain` 与 `ai-sdk` 适配器补齐工具调用消息映射
-- [ ] 提供 CLI（如 `render` / `validate`）用于本地调试与 CI
+- [x] 支持 `{% for %}` 循环语法（含 `for ... in ...` 与 `endfor`）
+- [x] 支持点语法变量访问（如 `{{user.name}}`、`{{config.model}}`）
+- [x] 条件表达式支持取反 `!` 与 `in` 操作符
+- [x] 增加异步变量解析能力（变量可来自 `Promise` / async resolver）
+- [x] 增加模板验证 API（仅校验语法与结构，不执行渲染）
+- [x] 支持 `tool` / `tool_result` 等工具调用相关消息角色
+- [x] 为 `langchain` 与 `ai-sdk` 适配器补齐工具调用消息映射
+- [x] 提供 CLI（如 `render` / `validate`）用于本地调试与 CI
 
 ## P1（中优先级）
 

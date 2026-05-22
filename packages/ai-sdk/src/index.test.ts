@@ -31,3 +31,36 @@ test("toAISDKMessages keeps string content", () => {
 test("toAISDKMessages handles empty array", () => {
   expect(toAISDKMessages([])).toEqual([]);
 });
+
+test("toAISDKMessages maps tool_result role to tool content", () => {
+  const messages: Message[] = [
+    {
+      role: "tool_result",
+      content: [
+        {
+          type: "tool_result",
+          tool_call_id: "call_1",
+          tool_name: "search",
+          output: { answer: 42 },
+          is_error: false
+        }
+      ]
+    }
+  ];
+
+  const mapped = toAISDKMessages(messages);
+  expect(mapped).toEqual([
+    {
+      role: "tool",
+      content: [
+        {
+          type: "tool-result",
+          toolCallId: "call_1",
+          toolName: "search",
+          result: { answer: 42 },
+          isError: false
+        }
+      ]
+    }
+  ]);
+});

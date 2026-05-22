@@ -1,5 +1,5 @@
-import type { MessageContent } from "guodu-prompt-engine-core";
-import type { AssistantContent, UserContent } from "ai";
+import type { MessageContent, ToolResultContent } from "guodu-prompt-engine-core";
+import type { AssistantContent, ToolContent, UserContent } from "ai";
 
 export function mapAISDKContent(content: MessageContent): UserContent {
   if (typeof content === "string") return content;
@@ -9,6 +9,13 @@ export function mapAISDKContent(content: MessageContent): UserContent {
       return {
         type: "text",
         text: part.text
+      };
+    }
+
+    if (part.type === "tool_result") {
+      return {
+        type: "text",
+        text: typeof part.output === "string" ? part.output : JSON.stringify(part.output)
       };
     }
 
@@ -30,6 +37,13 @@ export function mapAISDKAssistantContent(content: MessageContent): AssistantCont
       };
     }
 
+    if (part.type === "tool_result") {
+      return {
+        type: "text",
+        text: typeof part.output === "string" ? part.output : JSON.stringify(part.output)
+      };
+    }
+
     // AssistantContent in AI SDK does not accept image parts directly.
     return {
       type: "text",
@@ -42,6 +56,62 @@ export function mapAISDKSystemContent(content: MessageContent): string {
   if (typeof content === "string") return content;
 
   return content
-    .map((part) => (part.type === "text" ? part.text : part.image_url.url))
+    .map((part) => {
+      if (part.type === "text") {
+        return part.text;
+      }
+
+      if (part.type === "tool_result") {
+        return typeof part.output === "string" ? part.output : JSON.stringify(part.output);
+      }
+
+      return part.image_url.url;
+    })
     .join("\n");
+}
+
+export function mapAISDKToolContent(content: MessageContent): ToolContent {
+  if (typeof content === "string") {
+    return [
+      {
+        type: "tool-result",
+        toolCallId: "unknown",
+        toolName: "unknown",
+        result: content
+      }
+    ];
+  }
+
+  const toolParts = content
+    .filter((part): part is ToolResultContent => part.type === "tool_result")
+    .map((part) => ({
+      type: "tool-result" as const,
+      toolCallId: part.tool_call_id,
+      toolName: part.tool_name ?? "unknown",
+      result: part.output,
+      isError: part.is_error
+    }));
+
+  if (toolParts.length > 0) {
+    return toolParts;
+  }
+
+  return [
+    {
+      type: "tool-result",
+      toolCallId: "unknown",
+      toolName: "unknown",
+      result: content.map((part) => {
+        if (part.type === "text") {
+          return part.text;
+        }
+
+        if (part.type === "tool_result") {
+          return part.output;
+        }
+
+        return part.image_url.url;
+      })
+    }
+  ];
 }

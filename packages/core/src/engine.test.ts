@@ -282,3 +282,58 @@ detail: high
     }
   ]);
 });
+
+test("supports for loop rendering with dot-path variables", async () => {
+  const baseDir = await createTemplateDir({
+    "main.md": `{% role:user %}{% for item in items %}{{item.name}} {% endfor %}{% endrole %}`
+  });
+
+  const engine = new TemplateEngine({ baseDir });
+  const messages = await engine.render("main.md", {
+    items: [{ name: "A" }, { name: "B" }]
+  });
+
+  expect(messages).toEqual([{ role: "user", content: "A B " }]);
+});
+
+test("supports async variable values", async () => {
+  const baseDir = await createTemplateDir({
+    "main.md": `{% role:system %}Hello {{user.name}}{% endrole %}`
+  });
+
+  const engine = new TemplateEngine({ baseDir });
+  const messages = await engine.render("main.md", {
+    user: Promise.resolve({ name: "Async" })
+  });
+
+  expect(messages).toEqual([{ role: "system", content: "Hello Async" }]);
+});
+
+test("supports async variable resolver", async () => {
+  const baseDir = await createTemplateDir({
+    "main.md": `{% role:user %}{{missing.value}}{% endrole %}`
+  });
+
+  const engine = new TemplateEngine({
+    baseDir,
+    variableResolver: async (variablePath) => {
+      if (variablePath === "missing.value") {
+        return "resolved";
+      }
+      return undefined;
+    }
+  });
+
+  const messages = await engine.render("main.md", {});
+  expect(messages).toEqual([{ role: "user", content: "resolved" }]);
+});
+
+test("ignores comment blocks in rendering", async () => {
+  const baseDir = await createTemplateDir({
+    "main.md": `{# top-level comment #}\n{% role:user %}Hi{# inline #} there{% endrole %}`
+  });
+
+  const engine = new TemplateEngine({ baseDir });
+  const messages = await engine.render("main.md");
+  expect(messages).toEqual([{ role: "user", content: "Hi there" }]);
+});

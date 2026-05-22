@@ -14,6 +14,11 @@ interface TagInfo {
   arg?: string;
 }
 
+interface ForExpression {
+  itemName: string;
+  iterableExpression: string;
+}
+
 function parseTagContent(rawTag: string): TagInfo {
   const content = rawTag.slice(2, -2).trim();
 
@@ -33,6 +38,10 @@ function parseTagContent(rawTag: string): TagInfo {
     return { name: "include", arg: content.slice(8).trim() };
   }
 
+  if (content.startsWith("for ")) {
+    return { name: "for", arg: content.slice(4).trim() };
+  }
+
   return { name: content };
 }
 
@@ -50,11 +59,33 @@ function extractIncludePath(rawArg: string | undefined): string {
 }
 
 function ensureRole(value: string | undefined): MessageRole {
-  if (value === "system" || value === "user" || value === "assistant") {
+  if (
+    value === "system" ||
+    value === "user" ||
+    value === "assistant" ||
+    value === "tool" ||
+    value === "tool_result"
+  ) {
     return value;
   }
 
   throw new Error(`Invalid role: ${value ?? ""}`);
+}
+
+function parseForExpression(rawArg: string | undefined): ForExpression {
+  if (!rawArg) {
+    throw new Error("For tag requires an expression like: for item in items.");
+  }
+
+  const match = rawArg.match(/^([A-Za-z_][A-Za-z0-9_]*)\s+in\s+([\s\S]+)$/);
+  if (!match?.[1] || !match[2]?.trim()) {
+    throw new Error(`Invalid for expression: ${rawArg}`);
+  }
+
+  return {
+    itemName: match[1],
+    iterableExpression: match[2].trim()
+  };
 }
 
 function parseImageAttributes(rawImageBlock: string): ParsedImageAttributes {
@@ -85,7 +116,7 @@ function parseImageAttributes(rawImageBlock: string): ParsedImageAttributes {
 }
 
 function tokenizeTemplate(template: string): string[] {
-  const rawTokens = template.split(/({%[\s\S]*?%})/g);
+  const rawTokens = template.split(/({%[\s\S]*?%}|{#[\s\S]*?#})/g);
   return rawTokens.filter((token) => token.length > 0);
 }
 
@@ -98,6 +129,11 @@ export function parseTemplate(template: string): TemplateNode[] {
 
     while (position < tokens.length) {
       const token = tokens[position] ?? "";
+
+      if (token.startsWith("{#")) {
+        position += 1;
+        continue;
+      }
 
       if (!token.startsWith("{%")) {
         position += 1;
@@ -163,6 +199,24 @@ export function parseTemplate(template: string): TemplateNode[] {
         continue;
       }
 
+      if (tag.name === "for") {
+        const expression = parseForExpression(tag.arg);
+        position += 1;
+
+        const nested = parseSequence(["endfor"]);
+        if (nested.stopTag?.name !== "endfor") {
+          throw new Error("For tag is missing endfor.");
+        }
+
+        nodes.push({
+          type: "for",
+          itemName: expression.itemName,
+          iterableExpression: expression.iterableExpression,
+          children: nested.nodes
+        });
+        continue;
+      }
+
       if (tag.name === "include") {
         position += 1;
         nodes.push({ type: "include", path: extractIncludePath(tag.arg) });
@@ -176,6 +230,12 @@ export function parseTemplate(template: string): TemplateNode[] {
 
         while (position < tokens.length) {
           const imageToken = tokens[position] ?? "";
+
+          if (imageToken.startsWith("{#")) {
+            position += 1;
+            continue;
+          }
+
           if (imageToken.startsWith("{%")) {
             const imageTag = parseTagContent(imageToken);
             if (imageTag.name !== "endimage") {

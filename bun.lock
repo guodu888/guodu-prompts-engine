@@ -21,6 +21,16 @@
         "ai": "^4.0.0",
       },
     },
+    "packages/cli": {
+      "name": "guodu-prompt-engine-cli",
+      "version": "0.1.2",
+      "bin": {
+        "guodu": "./dist/cli.js",
+      },
+      "dependencies": {
+        "guodu-prompt-engine-core": "^0.1.2",
+      },
+    },
     "packages/core": {
       "name": "guodu-prompt-engine-core",
       "version": "0.1.2",
@@ -361,6 +371,8 @@
     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
 
     "guodu-prompt-engine-ai-sdk": ["guodu-prompt-engine-ai-sdk@workspace:packages/ai-sdk"],
+
+    "guodu-prompt-engine-cli": ["guodu-prompt-engine-cli@workspace:packages/cli"],
 
     "guodu-prompt-engine-core": ["guodu-prompt-engine-core@workspace:packages/core"],
 

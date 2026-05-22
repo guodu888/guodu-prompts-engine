@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { evaluateCondition } from "./condition-evaluator";
+import { evaluateCondition, evaluateConditionAsync } from "./condition-evaluator";
 
 test("evaluates equals for string literal", () => {
   expect(evaluateCondition('level == "advanced"', { level: "advanced" })).toBe(true);
@@ -69,4 +69,28 @@ test("throws for unsupported condition operand token", () => {
   expect(() => evaluateCondition("score == @bad", { score: 1 })).toThrow(
     "Unsupported condition operand"
   );
+});
+
+test("supports unary not operator", () => {
+  expect(evaluateCondition("!flag", { flag: false })).toBe(true);
+  expect(evaluateCondition("!!flag", { flag: true })).toBe(true);
+  expect(evaluateCondition("!(a == 1)", { a: 1 })).toBe(false);
+});
+
+test("supports in operator", () => {
+  expect(evaluateCondition("item in items", { item: "a", items: ["a", "b"] })).toBe(true);
+  expect(evaluateCondition('"name" in user', { user: { name: "alice" } })).toBe(true);
+  expect(evaluateCondition('"x" in "xyz"', {})).toBe(true);
+});
+
+test("supports dot-path operands", () => {
+  expect(evaluateCondition('user.level == "advanced"', { user: { level: "advanced" } })).toBe(true);
+});
+
+test("supports async condition evaluation", async () => {
+  const result = await evaluateConditionAsync("user.active && score >= 60", {
+    user: Promise.resolve({ active: true }),
+    score: Promise.resolve(90)
+  });
+  expect(result).toBe(true);
 });

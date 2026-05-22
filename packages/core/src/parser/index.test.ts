@@ -11,6 +11,14 @@ test("parses role blocks", () => {
   }
 });
 
+test("parses tool roles", () => {
+  const nodes = parseTemplate("{% role:tool %}result{% endrole %}");
+  expect(nodes[0]?.type).toBe("role");
+  if (nodes[0]?.type === "role") {
+    expect(nodes[0].role).toBe("tool");
+  }
+});
+
 test("parses if-elseif-else branches", () => {
   const nodes = parseTemplate(
     "{% if level == \"a\" %}A{% elseif level == \"b\" %}B{% else %}C{% endif %}"
@@ -38,6 +46,29 @@ test("parses include and image tags", () => {
       urlExpression: "https://a.com/x.png",
       detailExpression: "high"
     });
+  }
+});
+
+test("parses for blocks", () => {
+  const nodes = parseTemplate("{% for item in items %}{{item}}{% endfor %}");
+  expect(nodes).toHaveLength(1);
+  expect(nodes[0]?.type).toBe("for");
+  if (nodes[0]?.type === "for") {
+    expect(nodes[0].itemName).toBe("item");
+    expect(nodes[0].iterableExpression).toBe("items");
+    expect(nodes[0].children[0]).toEqual({ type: "text", value: "{{item}}" });
+  }
+});
+
+test("ignores comment blocks", () => {
+  const nodes = parseTemplate("{# top #}{% role:user %}a{# mid #}b{% endrole %}{# end #}");
+  expect(nodes).toHaveLength(1);
+  expect(nodes[0]?.type).toBe("role");
+  if (nodes[0]?.type === "role") {
+    expect(nodes[0].children).toEqual([
+      { type: "text", value: "a" },
+      { type: "text", value: "b" }
+    ]);
   }
 });
 
@@ -101,6 +132,18 @@ test("throws when image block reaches EOF without endimage", () => {
   expect(() => parseTemplate("{% role:user %}{% image %}url: https://a.com/x.png")).toThrow(
     "Image block is missing endimage"
   );
+});
+
+test("throws when for tag misses expression", () => {
+  expect(() => parseTemplate("{% for %}x{% endfor %}")).toThrow("For tag requires an expression");
+});
+
+test("throws when for expression is invalid", () => {
+  expect(() => parseTemplate("{% for item items %}x{% endfor %}")).toThrow("Invalid for expression");
+});
+
+test("throws when for block misses endfor", () => {
+  expect(() => parseTemplate("{% for item in items %}x")).toThrow("For tag is missing endfor");
 });
 
 test("throws on unknown tag", () => {

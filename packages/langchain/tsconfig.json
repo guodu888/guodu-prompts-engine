@@ -2,7 +2,15 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "paths": {
+      "*": [
+        "./*"
+      ],
+      "guodu-prompt-engine-core": [
+        "../core/src/index.ts"
+      ]
+    }
   },
   "include": [
     "src/**/*"

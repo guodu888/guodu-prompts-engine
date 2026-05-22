@@ -10,6 +10,7 @@ export default defineConfig({
     nav: [
       { text: "指南", link: "/guide/getting-started" },
       { text: "Playground", link: "/guide/playground" },
+      { text: "CLI", link: "/guide/cli" },
       { text: "API", link: "/guide/api" },
       { text: "GitHub", link: "https://github.com" }
     ],
@@ -26,6 +27,7 @@ export default defineConfig({
         items: [
           { text: "Playground", link: "/guide/playground" },
           { text: "模板语法", link: "/guide/template-syntax" },
+          { text: "CLI", link: "/guide/cli" },
           { text: "Core API", link: "/guide/api" },
           { text: "Adapters", link: "/guide/adapters" }
         ]

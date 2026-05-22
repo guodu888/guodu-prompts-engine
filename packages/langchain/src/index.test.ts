@@ -6,12 +6,23 @@ test("toLangChainMessages maps roles", () => {
   const messages: Message[] = [
     { role: "system", content: "s" },
     { role: "user", content: "u" },
-    { role: "assistant", content: "a" }
+    { role: "assistant", content: "a" },
+    {
+      role: "tool",
+      content: [
+        {
+          type: "tool_result",
+          tool_call_id: "call_1",
+          tool_name: "search",
+          output: { ok: true }
+        }
+      ]
+    }
   ];
 
   const mapped = toLangChainMessages(messages);
 
-  expect(mapped.map((m) => m.role)).toEqual(["system", "human", "ai"]);
+  expect(mapped.map((m) => m.role)).toEqual(["system", "human", "ai", "tool"]);
 });
 
 test("toLangChainMessages maps multimodal content", () => {
@@ -39,4 +50,30 @@ test("toLangChainMessages maps multimodal content", () => {
 
 test("toLangChainMessages handles empty array", () => {
   expect(toLangChainMessages([])).toEqual([]);
+});
+
+test("toLangChainMessages maps tool result metadata", () => {
+  const messages: Message[] = [
+    {
+      role: "tool_result",
+      content: [
+        {
+          type: "tool_result",
+          tool_call_id: "call_42",
+          tool_name: "calculator",
+          output: 3,
+          is_error: false
+        }
+      ]
+    }
+  ];
+
+  const mapped = toLangChainMessages(messages);
+  expect(mapped[0]).toEqual({
+    role: "tool",
+    tool_call_id: "call_42",
+    name: "calculator",
+    status: "success",
+    content: "3"
+  });
 });
