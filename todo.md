@@ -19,9 +19,7 @@
 - [ ] 增加批量渲染 API（并发渲染多个模板）
 - [ ] 增加渲染生命周期 hooks（before/after/onInclude）
 - [ ] strict 模式增强（未使用变量、include 规则等）
-- [ ] 增加 Gemini 适配器
-- [ ] 增加 Anthropic 适配器
-- [ ] 增加 Ollama 适配器
+
 
 ## P2（工程化与体验）
 

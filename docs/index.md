@@ -24,6 +24,8 @@ packages/
   core/
   langchain/
   ai-sdk/
+  cli/
+  vscode-extension/
 ```
 
 ## 快速入口

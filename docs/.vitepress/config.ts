@@ -12,7 +12,7 @@ export default defineConfig({
       { text: "Playground", link: "/guide/playground" },
       { text: "CLI", link: "/guide/cli" },
       { text: "API", link: "/guide/api" },
-      { text: "GitHub", link: "https://github.com" }
+      { text: "GitHub", link: "https://github.com/guodu888/guodu-prompts-engine" }
     ],
     sidebar: [
       {
@@ -35,12 +35,13 @@ export default defineConfig({
       {
         text: "工程实践",
         items: [
+          { text: "VS Code 扩展", link: "/guide/vscode-extension" },
           { text: "gdprompt Formatter 标准", link: "/guide/formatter" },
           { text: "测试与发布", link: "/guide/testing-and-release" }
         ]
       }
     ],
-    socialLinks: [{ icon: "github", link: "https://github.com" }],
+    socialLinks: [{ icon: "github", link: "https://github.com/guodu888/guodu-prompts-engine" }],
     search: {
       provider: "local"
     },

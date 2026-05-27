@@ -117,6 +117,7 @@
 - include 路径必须带引号
 - include 文件必须位于 `baseDir` 范围内
 - 自动检测循环 include
+- 在 `renderTemplateString` 中若使用 include，需提供 `includeResolver`
 
 ## 多模态图片
 
@@ -131,3 +132,9 @@ detail: high
 ```
 
 `detail` 支持：`low`、`high`、`auto`（默认值）。
+
+## 结构约束
+
+- 顶层非空文本必须放在 `role` 块内
+- `image` 块必须位于 `role` 块内部
+- 不支持嵌套 `role` 块

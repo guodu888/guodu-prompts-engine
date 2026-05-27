@@ -12,8 +12,10 @@ bun run --filter gdprompt-cli build
 
 ```bash
 bun add -g gdprompt-cli
-gdprompt --help
+gdprompt
 ```
+
+未提供参数时会打印 usage 并以非 0 退出。
 
 ## 命令
 
@@ -46,6 +48,11 @@ gdprompt validate main.md --base-dir ./prompts
 
 - 校验通过：`"valid": true`
 - 校验失败：返回 `errors` 并以非 0 退出
+
+## 退出码
+
+- `0`：命令执行成功，且（对于 `validate`）模板校验通过
+- `1`：参数缺失、命令不支持、渲染失败、或校验失败
 
 ## CI 使用
 

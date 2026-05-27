@@ -271,12 +271,12 @@ const engine = new TemplateEngine({
 
 ```ts
 // 消息角色
-type MessageRole = 'system' | 'user' | 'assistant';
+type MessageRole = 'system' | 'user' | 'assistant' | 'tool' | 'tool_result';
 
 // 消息接口
 interface Message {
   role: MessageRole;
-  content: MessageContent; // string | (TextContent | ImageContent)[]
+  content: MessageContent; // string | (TextContent | ImageContent | ToolResultContent)[]
 }
 
 // 图片内容
@@ -292,6 +292,15 @@ interface ImageContent {
 interface TextContent {
   type: 'text';
   text: string;
+}
+
+// 工具结果内容
+interface ToolResultContent {
+  type: 'tool_result';
+  tool_call_id: string;
+  tool_name?: string;
+  output: unknown;
+  is_error?: boolean;
 }
 ```
 
