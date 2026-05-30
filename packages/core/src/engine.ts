@@ -78,26 +78,27 @@ export class TemplateEngine {
     return content;
   }
 
-  private async normalizeText(text: string): Promise<string> {
-    return resolveTemplateStringAsync(text, this.currentVariables, {
+  private async normalizeText(text: string, variables: TemplateVariables): Promise<string> {
+    return resolveTemplateStringAsync(text, variables, {
       strictUndefined: this.strictUndefined,
       variableResolver: this.options.variableResolver
     });
   }
-
-  private currentVariables: TemplateVariables = {};
 
   private async parseTemplateFile(absolutePath: string) {
     const content = await this.readTemplate(absolutePath);
     return parseTemplate(content);
   }
 
-  private async resolveImageDetail(rawDetail: string | undefined): Promise<"low" | "high" | "auto"> {
+  private async resolveImageDetail(
+    rawDetail: string | undefined,
+    variables: TemplateVariables
+  ): Promise<"low" | "high" | "auto"> {
     if (!rawDetail) {
       return "auto";
     }
 
-    const resolved = (await this.normalizeText(rawDetail)).trim().toLowerCase();
+    const resolved = (await this.normalizeText(rawDetail, variables)).trim().toLowerCase();
     if (resolved === "low" || resolved === "high" || resolved === "auto") {
       return resolved;
     }
@@ -108,7 +109,8 @@ export class TemplateEngine {
   private async renderRoleChildren(
     nodes: Awaited<ReturnType<typeof parseTemplate>>,
     currentDir: string,
-    stack: Set<string>
+    stack: Set<string>,
+    variables: TemplateVariables
   ): Promise<RenderRolePart[]> {
     const parts: RenderRolePart[] = [];
     let textBuffer = "";
@@ -122,13 +124,13 @@ export class TemplateEngine {
 
     for (const node of nodes) {
       if (node.type === "text") {
-        textBuffer += await this.normalizeText(node.value);
+        textBuffer += await this.normalizeText(node.value, variables);
         continue;
       }
 
       if (node.type === "image") {
         flushTextBuffer();
-        const url = (await this.normalizeText(node.urlExpression)).trim();
+        const url = (await this.normalizeText(node.urlExpression, variables)).trim();
         if (!url) {
           throw new Error("Image url cannot be empty.");
         }
@@ -137,7 +139,7 @@ export class TemplateEngine {
           type: "image_url",
           image_url: {
             url,
-            detail: await this.resolveImageDetail(node.detailExpression)
+            detail: await this.resolveImageDetail(node.detailExpression, variables)
           }
         });
         continue;
@@ -151,7 +153,7 @@ export class TemplateEngine {
           }
 
           if (
-            await evaluateConditionAsync(candidate.condition, this.currentVariables, {
+            await evaluateConditionAsync(candidate.condition, variables, {
               variableResolver: this.options.variableResolver
             })
           ) {
@@ -161,7 +163,7 @@ export class TemplateEngine {
         }
 
         if (branch) {
-          const nested = await this.renderRoleChildren(branch.children, currentDir, stack);
+          const nested = await this.renderRoleChildren(branch.children, currentDir, stack, variables);
           const lastNested = nested[nested.length - 1];
           if (lastNested?.type === "text") {
             lastNested.text = trimBeforeControlEndTag(lastNested.text);
@@ -173,7 +175,7 @@ export class TemplateEngine {
       }
 
       if (node.type === "for") {
-        const iterable = await resolveVariableRawValueAsync(node.iterableExpression, this.currentVariables, {
+        const iterable = await resolveVariableRawValueAsync(node.iterableExpression, variables, {
           variableResolver: this.options.variableResolver
         });
 
@@ -197,19 +199,14 @@ export class TemplateEngine {
         })();
 
         for (const value of values) {
-          const previousVariables = this.currentVariables;
-          this.currentVariables = {
-            ...previousVariables,
+          const loopVariables = {
+            ...variables,
             [node.itemName]: value
           };
 
-          try {
-            const nested = await this.renderRoleChildren(node.children, currentDir, stack);
-            flushTextBuffer();
-            parts.push(...nested);
-          } finally {
-            this.currentVariables = previousVariables;
-          }
+          const nested = await this.renderRoleChildren(node.children, currentDir, stack, loopVariables);
+          flushTextBuffer();
+          parts.push(...nested);
         }
 
         continue;
@@ -224,7 +221,12 @@ export class TemplateEngine {
         stack.add(includePath);
         try {
           const includeNodes = await this.parseTemplateFile(includePath);
-          const nested = await this.renderRoleChildren(includeNodes, path.dirname(includePath), stack);
+          const nested = await this.renderRoleChildren(
+            includeNodes,
+            path.dirname(includePath),
+            stack,
+            variables
+          );
           flushTextBuffer();
           parts.push(...nested);
         } finally {
@@ -309,20 +311,21 @@ export class TemplateEngine {
   private async renderTopLevelNodes(
     nodes: Awaited<ReturnType<typeof parseTemplate>>,
     currentDir: string,
-    stack: Set<string>
+    stack: Set<string>,
+    variables: TemplateVariables
   ): Promise<Message[]> {
     const messages: Message[] = [];
 
     for (const node of nodes) {
       if (node.type === "text") {
-        if ((await this.normalizeText(node.value)).trim().length > 0) {
+        if ((await this.normalizeText(node.value, variables)).trim().length > 0) {
           throw new Error("Top-level content must be wrapped in role blocks.");
         }
         continue;
       }
 
       if (node.type === "role") {
-        const parts = await this.renderRoleChildren(node.children, currentDir, stack);
+        const parts = await this.renderRoleChildren(node.children, currentDir, stack, variables);
         messages.push({
           role: node.role,
           content: this.toMessageContent(parts)
@@ -338,7 +341,7 @@ export class TemplateEngine {
           }
 
           if (
-            await evaluateConditionAsync(candidate.condition, this.currentVariables, {
+            await evaluateConditionAsync(candidate.condition, variables, {
               variableResolver: this.options.variableResolver
             })
           ) {
@@ -348,14 +351,14 @@ export class TemplateEngine {
         }
 
         if (branch) {
-          const branchMessages = await this.renderTopLevelNodes(branch.children, currentDir, stack);
+          const branchMessages = await this.renderTopLevelNodes(branch.children, currentDir, stack, variables);
           messages.push(...branchMessages);
         }
         continue;
       }
 
       if (node.type === "for") {
-        const iterable = await resolveVariableRawValueAsync(node.iterableExpression, this.currentVariables, {
+        const iterable = await resolveVariableRawValueAsync(node.iterableExpression, variables, {
           variableResolver: this.options.variableResolver
         });
 
@@ -379,18 +382,13 @@ export class TemplateEngine {
         })();
 
         for (const value of values) {
-          const previousVariables = this.currentVariables;
-          this.currentVariables = {
-            ...previousVariables,
+          const loopVariables = {
+            ...variables,
             [node.itemName]: value
           };
 
-          try {
-            const nestedMessages = await this.renderTopLevelNodes(node.children, currentDir, stack);
-            messages.push(...nestedMessages);
-          } finally {
-            this.currentVariables = previousVariables;
-          }
+          const nestedMessages = await this.renderTopLevelNodes(node.children, currentDir, stack, loopVariables);
+          messages.push(...nestedMessages);
         }
 
         continue;
@@ -408,7 +406,8 @@ export class TemplateEngine {
           const includeMessages = await this.renderTopLevelNodes(
             includeNodes,
             path.dirname(includePath),
-            stack
+            stack,
+            variables
           );
           messages.push(...includeMessages);
         } finally {
@@ -426,11 +425,9 @@ export class TemplateEngine {
   }
 
   async render(templatePath: string, variables: TemplateVariables = {}): Promise<Message[]> {
-    this.currentVariables = variables;
-
     const absolutePath = resolveTemplatePath(this.options.baseDir, templatePath);
     const stack = new Set<string>([absolutePath]);
     const nodes = await this.parseTemplateFile(absolutePath);
-    return this.renderTopLevelNodes(nodes, path.dirname(absolutePath), stack);
+    return this.renderTopLevelNodes(nodes, path.dirname(absolutePath), stack, variables);
   }
 }

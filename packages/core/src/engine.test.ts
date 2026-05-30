@@ -328,6 +328,30 @@ test("supports async variable resolver", async () => {
   expect(messages).toEqual([{ role: "user", content: "resolved" }]);
 });
 
+test("supports concurrent render calls on the same engine instance", async () => {
+  const baseDir = await createTemplateDir({
+    "main.md": `{% role:user %}{{first}} {% if showSecond %}{{second}}{% endif %}{% endrole %}`
+  });
+
+  const engine = new TemplateEngine({ baseDir });
+
+  const [a, b] = await Promise.all([
+    engine.render("main.md", {
+      first: new Promise<string>((resolve) => setTimeout(() => resolve("A1"), 30)),
+      showSecond: true,
+      second: "A2"
+    }),
+    engine.render("main.md", {
+      first: "B1",
+      showSecond: false,
+      second: "B2"
+    })
+  ]);
+
+  expect(a).toEqual([{ role: "user", content: "A1 A2" }]);
+  expect(b).toEqual([{ role: "user", content: "B1 " }]);
+});
+
 test("ignores comment blocks in rendering", async () => {
   const baseDir = await createTemplateDir({
     "main.md": `{# top-level comment #}\n{% role:user %}Hi{# inline #} there{% endrole %}`
